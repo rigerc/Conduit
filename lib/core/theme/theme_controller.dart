@@ -258,9 +258,9 @@ class ThemeController extends ChangeNotifier {
     await _save();
   }
 
-  Future<void> setRequireAppUnlock(bool required) async {
-    if (_requireAppUnlock == required) return;
-    _requireAppUnlock = required;
+  Future<void> setRequireAppUnlock(bool enabled) async {
+    if (_requireAppUnlock == enabled) return;
+    _requireAppUnlock = enabled;
     notifyListeners();
     await _save();
   }
