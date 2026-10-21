@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:conduit/core/presentation/conduit_brand.dart';
 import 'package:conduit/core/presentation/system_navigation_insets.dart';
+import 'package:conduit/core/presentation/theme_sheet.dart';
 import 'package:conduit/core/theme/app_palette.dart';
 import 'package:conduit/core/theme/terminal_appearance.dart';
 import 'package:conduit/core/theme/theme_controller.dart';
@@ -154,6 +155,13 @@ class _TerminalPageState extends State<TerminalPage> {
                         palette: palette,
                         brightness: brightness,
                         onBack: () => Navigator.of(context).pop(),
+                        onSettings: () async {
+                          await showGlobalSettingsSheet(
+                            context: context,
+                            controller: widget.themeController,
+                          );
+                          if (mounted) _focusNode.requestFocus();
+                        },
                         onReconnect: () async {
                           await activeSession.disconnect();
                           await activeSession.connect();

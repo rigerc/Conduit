@@ -72,7 +72,10 @@ Dart implementation of the protocol, and the terminal is
 - Saved global and per-machine snippets from the key row, with hidden snippets
   for passwords or secrets and optional per-machine run-on-connect snippets.
 - Optional device-auth app lock for protecting saved machines and credentials.
-- Built-in terminal themes, font sizing, palette choices, and appearance controls.
+- Global settings, accessible from Machines and active terminals, for terminal
+  font family (system monospace or bundled Nerd Font), font size (4-30 in 0.5
+  steps), palettes, appearance, and keyboard controls. Changes apply to all
+  sessions and persist across launches.
 - Configurable cursor shape, terminal line spacing and padding, and scrollback
   history (new tabs only).
 - Global SSH keepalive (off, 10, 30, 60, or 120 seconds), confirmation when
