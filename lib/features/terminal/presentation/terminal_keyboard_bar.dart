@@ -492,7 +492,7 @@ sealed class _SnippetMenuItem {
 
   factory _SnippetMenuItem.snippet(
     TerminalSnippet snippet, {
-    bool isGlobal,
+    bool isGlobal = false,
   }) = _SnippetMenuSnippet;
 
   factory _SnippetMenuItem.password(String password) = _SnippetMenuPassword;

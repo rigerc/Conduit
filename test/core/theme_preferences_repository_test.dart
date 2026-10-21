@@ -206,6 +206,27 @@ void main() {
       expect(preferences.terminalEnterSequence, TerminalEnterSequence.crlf);
     });
 
+    test('persists global snippet visibility and send confirmation', () async {
+      final storage = InMemorySecureStorage();
+      final repository = ThemePreferencesRepository(storage);
+      final defaults = await repository.load();
+      expect(defaults.showGlobalSnippets, isTrue);
+      expect(defaults.confirmGlobalSnippetSend, isFalse);
+
+      await repository.save(
+        const ThemePreferences(
+          themeMode: ThemeMode.dark,
+          palette: AppPalette.synthwave,
+          showGlobalSnippets: false,
+          confirmGlobalSnippetSend: true,
+        ),
+      );
+
+      final preferences = await repository.load();
+      expect(preferences.showGlobalSnippets, isFalse);
+      expect(preferences.confirmGlobalSnippetSend, isTrue);
+    });
+
     test('persists and loads global snippets', () async {
       final storage = InMemorySecureStorage();
       final repository = ThemePreferencesRepository(storage);

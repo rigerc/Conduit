@@ -71,6 +71,9 @@ Dart implementation of the protocol, and the terminal is
   repeat, latching modifiers, and your own text snippets and control-key combos.
 - Saved global and per-machine snippets from the key row, with hidden snippets
   for passwords or secrets and optional per-machine run-on-connect snippets.
+  Global snippet settings independently control visibility in the Snip menu
+  and whether sending a global snippet requires confirmation; the global
+  snippet library can always be edited without deleting hidden entries.
 - Optional device-auth app lock for protecting saved machines and credentials.
 - Built-in terminal themes, font sizing, palette choices, and appearance controls.
 - On-device **local Arch Linux shell** (Android, arm64) with `pacman`, running

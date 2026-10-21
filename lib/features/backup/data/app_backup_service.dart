@@ -137,6 +137,8 @@ class AppBackupService {
             'items': [for (final item in row.items) _keyboardItemToJson(item)],
           },
       ],
+      'showGlobalSnippets': _themeController.showGlobalSnippets,
+      'confirmGlobalSnippetSend': _themeController.confirmGlobalSnippetSend,
       'terminalSnippets': [
         for (final snippet in _themeController.terminalSnippets)
           (includeSecrets ? snippet : _snippetForBackup(snippet)).toJson(),
@@ -187,6 +189,16 @@ class AppBackupService {
     }
     final snippets = _parseSnippets(json['terminalSnippets']);
     await _themeController.setTerminalSnippets(snippets);
+    final showGlobalSnippets = json['showGlobalSnippets'];
+    if (showGlobalSnippets is bool) {
+      await _themeController.setShowGlobalSnippets(showGlobalSnippets);
+    }
+    final confirmGlobalSnippetSend = json['confirmGlobalSnippetSend'];
+    if (confirmGlobalSnippetSend is bool) {
+      await _themeController.setConfirmGlobalSnippetSend(
+        confirmGlobalSnippetSend,
+      );
+    }
     final showLocalShell = json['showLocalShell'];
     if (showLocalShell is bool) {
       await _themeController.setShowLocalShell(showLocalShell);
