@@ -680,6 +680,7 @@ void main() {
                 ),
               ],
               showGlobalSnippets: false,
+              confirmGlobalSnippetSend: true,
               fullscreen: false,
               onToggleFullscreen: () {},
               onEnterTmuxScrollMode: () {},

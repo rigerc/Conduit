@@ -404,7 +404,6 @@ class _TerminalAppearanceControls extends StatelessWidget {
             onChanged: controller.setTerminalMouseInput,
           ),
         ),
-
       ],
     );
   }
