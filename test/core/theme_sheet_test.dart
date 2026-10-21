@@ -7,6 +7,38 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/test_doubles.dart';
 
 void main() {
+  testWidgets('appearance settings exposes cursor and rendering controls', (
+    tester,
+  ) async {
+    final controller = ThemeController(InMemoryThemePreferences());
+    await controller.load();
+    await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) =>
+      Scaffold(body: FilledButton(
+        onPressed: () => showThemeSheet(context: context, controller: controller),
+        child: const Text('Open appearance'),
+      )),
+    )));
+    await tester.tap(find.text('Open appearance'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Cursor shape'),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Underline'));
+    await tester.pumpAndSettle();
+    expect(controller.terminalCursorShape, TerminalCursorShape.underline);
+    await tester.scrollUntilVisible(
+      find.text('Scrollback history (new tabs)'),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Terminal padding'), findsOneWidget);
+    expect(find.text('Line spacing'), findsOneWidget);
+    expect(find.text('Scrollback history (new tabs)'), findsOneWidget);
+  });
+
   testWidgets('appearance sheet toggles local shell visibility', (
     tester,
   ) async {

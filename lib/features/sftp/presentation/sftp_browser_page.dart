@@ -51,12 +51,21 @@ class _SftpBrowserPageState extends State<SftpBrowserPage> {
       host: widget.host,
       repository: widget.repository,
       fileExport: widget.fileExport,
+      initialSortMode: widget.themeController.sftpSortMode,
+      showHiddenFiles: widget.themeController.sftpShowHiddenFiles,
     );
+    widget.themeController.addListener(_syncPreferences);
     _controller.connect();
+  }
+
+  void _syncPreferences() {
+    _controller.setSortMode(widget.themeController.sftpSortMode);
+    _controller.setShowHiddenFiles(widget.themeController.sftpShowHiddenFiles);
   }
 
   @override
   void dispose() {
+    widget.themeController.removeListener(_syncPreferences);
     SecurityKeyInteraction.instance.unregisterPinPrompt(_promptSecurityKeyPin);
     SecurityKeyInteraction.instance.unregisterSelectionPrompt(
       _promptSecurityKeySelection,
@@ -110,7 +119,10 @@ class _SftpBrowserPageState extends State<SftpBrowserPage> {
                     onSegmentTap: _navigateToPath,
                     onSearchChanged: _controller.setSearchQuery,
                     onClearSearch: _clearSearch,
-                    onSortChanged: _controller.setSortMode,
+                    onSortChanged: (sort) {
+                      _controller.setSortMode(sort);
+                      widget.themeController.setSftpSortMode(sort);
+                    },
                     onRefresh: _controller.status == SftpBrowserStatus.ready
                         ? _controller.refresh
                         : null,
