@@ -150,6 +150,7 @@ class _HostsPageState extends State<HostsPage> {
                     listenable: Listenable.merge([
                       widget.hostsController,
                       widget.workspaceController,
+                      widget.themeController,
                     ]),
                     builder: (context, _) {
                       return HostsHero(
@@ -162,7 +163,9 @@ class _HostsPageState extends State<HostsPage> {
                           backupService: widget.backupService,
                         ),
                         onTrustedKeys: _openTrustedKeys,
-                        onLock: _lock,
+                        onLock: widget.themeController.requireAppUnlock
+                            ? _lock
+                            : null,
                         onOpenSessions: widget.workspaceController.hasSessions
                             ? _openTerminalWorkspace
                             : null,

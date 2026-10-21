@@ -33,7 +33,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   registerLocalShellLicenses();
   unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
@@ -80,7 +80,13 @@ void main() {
   );
   const fileExport = FilePickerFileExport();
 
-  unawaited(themeController.load());
+  // Restore security preferences before showing the lock screen, so users
+  // who disabled the app lock are never prompted during startup.
+  try {
+    await themeController.load();
+  } catch (_) {
+    // If secure storage fails, retain the safe default: lock enabled.
+  }
 
   runApp(
     ConduitApp(
@@ -253,7 +259,8 @@ class _ConduitAppState extends State<ConduitApp> with WidgetsBindingObserver {
           home: ListenableBuilder(
             listenable: widget.lockController,
             builder: (context, _) {
-              if (!widget.lockController.isUnlocked) {
+              if (widget.themeController.requireAppUnlock &&
+                  !widget.lockController.isUnlocked) {
                 return LockPage(
                   controller: widget.lockController,
                   themeController: widget.themeController,

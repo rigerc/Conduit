@@ -27,6 +27,7 @@ class ThemeController extends ChangeNotifier {
   bool _showGlobalSnippets = true;
   bool _confirmGlobalSnippetSend = false;
   bool _showLocalShell = true;
+  bool _requireAppUnlock = true;
   bool _terminalMouseInput = false;
   TerminalEnterSequence _terminalEnterSequence = TerminalEnterSequence.cr;
 
@@ -49,6 +50,7 @@ class ThemeController extends ChangeNotifier {
   bool get showGlobalSnippets => _showGlobalSnippets;
   bool get confirmGlobalSnippetSend => _confirmGlobalSnippetSend;
   bool get showLocalShell => _showLocalShell;
+  bool get requireAppUnlock => _requireAppUnlock;
   bool get terminalMouseInput => _terminalMouseInput;
   TerminalEnterSequence get terminalEnterSequence => _terminalEnterSequence;
 
@@ -71,6 +73,7 @@ class ThemeController extends ChangeNotifier {
     _showGlobalSnippets = preferences.showGlobalSnippets;
     _confirmGlobalSnippetSend = preferences.confirmGlobalSnippetSend;
     _showLocalShell = preferences.showLocalShell;
+    _requireAppUnlock = preferences.requireAppUnlock;
     _terminalMouseInput = preferences.terminalMouseInput;
     _terminalEnterSequence = preferences.terminalEnterSequence;
     notifyListeners();
@@ -255,6 +258,13 @@ class ThemeController extends ChangeNotifier {
     await _save();
   }
 
+  Future<void> setRequireAppUnlock(bool enabled) async {
+    if (_requireAppUnlock == enabled) return;
+    _requireAppUnlock = enabled;
+    notifyListeners();
+    await _save();
+  }
+
   Future<void> setTerminalMouseInput(bool enabled) async {
     if (_terminalMouseInput == enabled) {
       return;
@@ -293,6 +303,7 @@ class ThemeController extends ChangeNotifier {
         showGlobalSnippets: _showGlobalSnippets,
         confirmGlobalSnippetSend: _confirmGlobalSnippetSend,
         showLocalShell: _showLocalShell,
+        requireAppUnlock: _requireAppUnlock,
         terminalMouseInput: _terminalMouseInput,
         terminalEnterSequence: _terminalEnterSequence,
       ),

@@ -153,6 +153,7 @@ class AppBackupService {
           (includeSecrets ? snippet : _snippetForBackup(snippet)).toJson(),
       ],
       'showLocalShell': _themeController.showLocalShell,
+      'requireAppUnlock': _themeController.requireAppUnlock,
       'terminalMouseInput': _themeController.terminalMouseInput,
       'terminalEnterSequence': _themeController.terminalEnterSequence.name,
     };
@@ -249,6 +250,10 @@ class AppBackupService {
     final showLocalShell = json['showLocalShell'];
     if (showLocalShell is bool) {
       await _themeController.setShowLocalShell(showLocalShell);
+    }
+    final requireAppUnlock = json['requireAppUnlock'];
+    if (requireAppUnlock is bool) {
+      await _themeController.setRequireAppUnlock(requireAppUnlock);
     }
     final terminalMouseInput = json['terminalMouseInput'];
     if (terminalMouseInput is bool) {

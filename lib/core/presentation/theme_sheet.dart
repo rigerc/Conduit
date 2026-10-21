@@ -81,6 +81,10 @@ class _ThemeSheet extends StatelessWidget {
                   const SizedBox(height: 10),
                   _ModeSelector(controller: controller),
                   const SizedBox(height: 22),
+                  const ConduitSectionLabel('Security'),
+                  const SizedBox(height: 10),
+                  _AppLockSettings(controller: controller),
+                  const SizedBox(height: 22),
                   const ConduitSectionLabel('Terminal'),
                   const SizedBox(height: 10),
                   _TerminalAppearanceControls(controller: controller),
@@ -171,6 +175,25 @@ class _HomeAppearanceControls extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AppLockSettings extends StatelessWidget {
+  const _AppLockSettings({required this.controller});
+
+  final ThemeController controller;
+
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+    contentPadding: EdgeInsets.zero,
+    secondary: const Icon(Icons.lock_outline),
+    title: const Text('Require authentication to open Conduit'),
+    subtitle: const Text(
+      'Turn off to skip the device unlock screen. '
+      'Anyone with access to your device can open Conduit.',
+    ),
+    value: controller.requireAppUnlock,
+    onChanged: controller.setRequireAppUnlock,
+  );
 }
 
 class _BackupControls extends StatelessWidget {
