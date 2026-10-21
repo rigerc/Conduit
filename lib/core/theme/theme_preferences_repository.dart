@@ -118,13 +118,19 @@ class ThemePreferencesRepository {
       key: _terminalEnterSequenceKey,
     );
     final terminalFontSize = double.tryParse(rawTerminalFontSize ?? '');
-    final terminalKeyboardRows = _appendUnseenBuiltIns(
-      _parseTerminalKeyboardRows(
-        rawTerminalKeyboardRows,
-        rawTerminalKeyboardActions,
-      ),
-      _parseSeenActionNames(rawTerminalKeyboardSeenActions),
+    final parsedKeyboardRows = _parseTerminalKeyboardRows(
+      rawTerminalKeyboardRows,
+      rawTerminalKeyboardActions,
     );
+    // Only migrate unseen keys for previously saved layouts. Fresh installs
+    // must keep the compact Focused preset exactly as defined.
+    final terminalKeyboardRows =
+        rawTerminalKeyboardRows == null && rawTerminalKeyboardActions == null
+        ? parsedKeyboardRows
+        : _appendUnseenBuiltIns(
+            parsedKeyboardRows,
+            _parseSeenActionNames(rawTerminalKeyboardSeenActions),
+          );
 
     return ThemePreferences(
       themeMode: ThemeMode.values.firstWhere(
