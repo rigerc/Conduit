@@ -156,7 +156,7 @@ class _HostsPageState extends State<HostsPage> {
                         hostCount: widget.hostsController.hosts.length,
                         activeSessionCount:
                             widget.workspaceController.sessions.length,
-                        onAppearance: () => showThemeSheet(
+                        onSettings: () => showGlobalSettingsSheet(
                           context: context,
                           controller: widget.themeController,
                           backupService: widget.backupService,

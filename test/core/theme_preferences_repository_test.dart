@@ -148,6 +148,24 @@ void main() {
       expect(preferences.terminalKeyboardRows, rows);
     });
 
+    test('persists global terminal font family and size', () async {
+      final storage = InMemorySecureStorage();
+      final repository = ThemePreferencesRepository(storage);
+
+      await repository.save(
+        const ThemePreferences(
+          themeMode: ThemeMode.dark,
+          palette: AppPalette.synthwave,
+          terminalFont: TerminalFontOption.systemMonospace,
+          terminalFontSize: 18.5,
+        ),
+      );
+
+      final preferences = await repository.load();
+      expect(preferences.terminalFont, TerminalFontOption.systemMonospace);
+      expect(preferences.terminalFontSize, 18.5);
+    });
+
     test('persists local shell visibility', () async {
       final storage = InMemorySecureStorage();
       final repository = ThemePreferencesRepository(storage);

@@ -9,6 +9,7 @@ class TerminalHeader extends StatelessWidget {
     required this.brightness,
     required this.onBack,
     required this.onReconnect,
+    required this.onSettings,
     super.key,
   });
 
@@ -17,6 +18,7 @@ class TerminalHeader extends StatelessWidget {
   final Brightness brightness;
   final VoidCallback onBack;
   final VoidCallback onReconnect;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +74,12 @@ class TerminalHeader extends StatelessWidget {
             color: foreground,
             icon: const Icon(Icons.refresh_rounded),
             onPressed: onReconnect,
+          ),
+          IconButton(
+            tooltip: 'Global settings',
+            color: foreground,
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: onSettings,
           ),
         ],
       ),

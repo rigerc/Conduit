@@ -5,7 +5,7 @@ class HostsHero extends StatelessWidget {
   const HostsHero({
     required this.hostCount,
     required this.activeSessionCount,
-    required this.onAppearance,
+    required this.onSettings,
     required this.onTrustedKeys,
     required this.onLock,
     required this.onOpenSessions,
@@ -14,7 +14,7 @@ class HostsHero extends StatelessWidget {
 
   final int hostCount;
   final int activeSessionCount;
-  final VoidCallback onAppearance;
+  final VoidCallback onSettings;
   final VoidCallback onTrustedKeys;
   final VoidCallback onLock;
   final VoidCallback? onOpenSessions;
@@ -37,9 +37,9 @@ class HostsHero extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _GhostIconButton(
-                tooltip: 'Appearance',
-                icon: Icons.palette_outlined,
-                onPressed: onAppearance,
+                tooltip: 'Global settings',
+                icon: Icons.settings_outlined,
+                onPressed: onSettings,
               ),
               const SizedBox(width: 8),
               _GhostIconButton(
