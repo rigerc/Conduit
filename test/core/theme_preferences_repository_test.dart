@@ -237,6 +237,23 @@ void main() {
       expect(loaded.sftpSortMode, SftpSortMode.name);
     });
 
+    test('app unlock is required by default and can be disabled', () async {
+      final storage = InMemorySecureStorage();
+      final repository = ThemePreferencesRepository(storage);
+
+      expect((await repository.load()).requireAppUnlock, isTrue);
+
+      await repository.save(
+        const ThemePreferences(
+          themeMode: ThemeMode.dark,
+          palette: AppPalette.synthwave,
+          requireAppUnlock: false,
+        ),
+      );
+
+      expect((await repository.load()).requireAppUnlock, isFalse);
+    });
+
     test('persists local shell visibility', () async {
       final storage = InMemorySecureStorage();
       final repository = ThemePreferencesRepository(storage);

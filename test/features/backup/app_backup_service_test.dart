@@ -35,6 +35,7 @@ void main() {
       await source.themeController.setTerminalPadding(10);
       await source.themeController.setSshKeepAliveSeconds(0);
       await source.themeController.setConfirmCloseActiveTabs(false);
+      await source.themeController.setRequireAppUnlock(false);
       await source.themeController.setSftpShowHiddenFiles(false);
       await source.themeController.setSftpSortMode(SftpSortMode.modified);
 
@@ -48,6 +49,7 @@ void main() {
       expect(saved.terminalPadding, 10);
       expect(saved.sshKeepAliveSeconds, 0);
       expect(saved.confirmCloseActiveTabs, isFalse);
+      expect(saved.requireAppUnlock, isFalse);
       expect(saved.sftpShowHiddenFiles, isFalse);
       expect(saved.sftpSortMode, SftpSortMode.modified);
     });

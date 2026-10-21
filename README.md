@@ -74,7 +74,7 @@ Dart implementation of the protocol, and the terminal is
   Global snippet settings independently control visibility in the Snip menu
   and whether sending a global snippet requires confirmation; the global
   snippet library can always be edited without deleting hidden entries.
-- Optional device-auth app lock for protecting saved machines and credentials.
+- Optional device-auth app lock for protecting saved machines and credentials. Enabled by default; disable it in Global settings → Security to skip the device unlock screen (SSH host authentication remains unchanged).
 - Global settings, accessible from Machines and active terminals, for terminal
   font family (system monospace or bundled Nerd Font), font size (4-30 in 0.5
   steps), palettes, appearance, and keyboard controls. Changes apply to all

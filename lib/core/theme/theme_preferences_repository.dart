@@ -26,6 +26,7 @@ class ThemePreferences {
     this.showGlobalSnippets = true,
     this.confirmGlobalSnippetSend = false,
     this.showLocalShell = true,
+    this.requireAppUnlock = true,
     this.terminalMouseInput = false,
     this.terminalEnterSequence = TerminalEnterSequence.cr,
   });
@@ -47,6 +48,7 @@ class ThemePreferences {
   final bool showGlobalSnippets;
   final bool confirmGlobalSnippetSend;
   final bool showLocalShell;
+  final bool requireAppUnlock;
   final bool terminalMouseInput;
   final TerminalEnterSequence terminalEnterSequence;
 }
@@ -76,6 +78,7 @@ class ThemePreferencesRepository {
   static const _confirmGlobalSnippetSendKey =
       'conduit.confirm_global_snippet_send.v1';
   static const _showLocalShellKey = 'conduit.show_local_shell.v1';
+  static const _requireAppUnlockKey = 'conduit.require_app_unlock.v1';
   static const _terminalMouseInputKey = 'conduit.terminal_mouse_input.v1';
   static const _terminalEnterSequenceKey = 'conduit.terminal_enter_sequence.v1';
 
@@ -111,6 +114,7 @@ class ThemePreferencesRepository {
       key: _confirmGlobalSnippetSendKey,
     );
     final rawShowLocalShell = await _storage.read(key: _showLocalShellKey);
+    final rawRequireAppUnlock = await _storage.read(key: _requireAppUnlockKey);
     final rawTerminalMouseInput = await _storage.read(
       key: _terminalMouseInputKey,
     );
@@ -175,6 +179,7 @@ class ThemePreferencesRepository {
       showGlobalSnippets: rawShowGlobalSnippets != 'false',
       confirmGlobalSnippetSend: rawConfirmGlobalSnippetSend == 'true',
       showLocalShell: rawShowLocalShell == null || rawShowLocalShell == 'true',
+      requireAppUnlock: rawRequireAppUnlock != 'false',
       terminalMouseInput: rawTerminalMouseInput == 'true',
       terminalEnterSequence: TerminalEnterSequence.values.firstWhere(
         (sequence) => sequence.name == rawTerminalEnterSequence,
@@ -237,6 +242,10 @@ class ThemePreferencesRepository {
     await _storage.write(
       key: _showLocalShellKey,
       value: preferences.showLocalShell.toString(),
+    );
+    await _storage.write(
+      key: _requireAppUnlockKey,
+      value: preferences.requireAppUnlock.toString(),
     );
     await _storage.write(
       key: _terminalMouseInputKey,

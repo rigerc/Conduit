@@ -16,7 +16,7 @@ class HostsHero extends StatelessWidget {
   final int activeSessionCount;
   final VoidCallback onSettings;
   final VoidCallback onTrustedKeys;
-  final VoidCallback onLock;
+  final VoidCallback? onLock;
   final VoidCallback? onOpenSessions;
 
   @override
@@ -41,12 +41,14 @@ class HostsHero extends StatelessWidget {
                 icon: Icons.settings_outlined,
                 onPressed: onSettings,
               ),
-              const SizedBox(width: 8),
-              _GhostIconButton(
-                tooltip: 'Lock',
-                icon: Icons.lock_outline,
-                onPressed: onLock,
-              ),
+              if (onLock != null) ...[
+                const SizedBox(width: 8),
+                _GhostIconButton(
+                  tooltip: 'Lock',
+                  icon: Icons.lock_outline,
+                  onPressed: onLock!,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 20),

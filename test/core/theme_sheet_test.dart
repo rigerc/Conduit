@@ -140,6 +140,43 @@ void main() {
     expect(controller.terminalSnippets, hasLength(1));
   });
 
+  testWidgets('security settings can disable app unlock', (tester) async {
+    final repository = InMemoryThemePreferences();
+    final controller = ThemeController(repository);
+    await controller.load();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showGlobalSettingsSheet(
+                context: context,
+                controller: controller,
+              ),
+              child: const Text('Open settings'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open settings'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Require authentication to open Conduit'),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+
+    expect(controller.requireAppUnlock, isTrue);
+    await tester.tap(find.text('Require authentication to open Conduit'));
+    await tester.pumpAndSettle();
+
+    expect(controller.requireAppUnlock, isFalse);
+    expect((await repository.load()).requireAppUnlock, isFalse);
+  });
+
   testWidgets('appearance sheet toggles local shell visibility', (
     tester,
   ) async {
