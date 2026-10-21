@@ -118,6 +118,7 @@ enum TerminalKeyboardAction {
   tmuxMenu,
   snippets,
   compose,
+  more,
 }
 
 enum TerminalKeyboardItemKind { builtIn, customText, customControl }
@@ -266,6 +267,8 @@ const preTrackingTerminalKeyboardActionNames = <String>{
   'tmuxScrollback',
   'tmuxMenu',
   'compose',
+  // Overflow is a layout affordance, not a newly required key on saved rows.
+  'more',
 };
 
 const tmuxTerminalKeyboardActions = [
@@ -359,9 +362,74 @@ class TerminalKeyboardRow {
   int get hashCode => Object.hash(height, Object.hashAll(items));
 }
 
-const defaultTerminalKeyboardRows = [
-  TerminalKeyboardRow(items: defaultTerminalKeyboardItems),
+/// Compact one-row layout. Less common actions live behind the More key.
+const focusedTerminalKeyboardRows = [
+  TerminalKeyboardRow(
+    items: [
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.escape),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.control),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.alt),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.tab),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.arrowLeft),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.arrowDown),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.arrowUp),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.arrowRight),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.more),
+    ],
+  ),
 ];
+
+/// Two rows: modifiers and symbols above navigation and workflow keys.
+const twoTierTerminalKeyboardRows = [
+  TerminalKeyboardRow(
+    items: [
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.escape),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.control),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.alt),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.tab),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.slash),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.dash),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.pipe),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.more),
+    ],
+  ),
+  TerminalKeyboardRow(
+    items: [
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.arrowLeft),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.arrowDown),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.arrowUp),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.arrowRight),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.functionKeys),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.tmuxPrefix),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.snippets),
+      TerminalKeyboardItem.builtIn(TerminalKeyboardAction.more),
+    ],
+  ),
+];
+
+enum TerminalKeyboardLayout { focused, twoTier, custom }
+
+TerminalKeyboardLayout terminalKeyboardLayoutForRows(
+  List<TerminalKeyboardRow> rows,
+) {
+  bool matches(List<TerminalKeyboardRow> preset) {
+    if (rows.length != preset.length) return false;
+    for (var index = 0; index < rows.length; index++) {
+      if (rows[index] != preset[index]) return false;
+    }
+    return true;
+  }
+
+  if (matches(focusedTerminalKeyboardRows)) {
+    return TerminalKeyboardLayout.focused;
+  }
+  if (matches(twoTierTerminalKeyboardRows)) {
+    return TerminalKeyboardLayout.twoTier;
+  }
+  return TerminalKeyboardLayout.custom;
+}
+
+const defaultTerminalKeyboardRows = focusedTerminalKeyboardRows;
 
 const terminalKeyboardControlKeys = [
   'A',
@@ -422,5 +490,6 @@ extension TerminalKeyboardActionDetails on TerminalKeyboardAction {
     TerminalKeyboardAction.tmuxMenu => 'Tmux+',
     TerminalKeyboardAction.snippets => 'Snip',
     TerminalKeyboardAction.compose => 'Compose',
+    TerminalKeyboardAction.more => 'More',
   };
 }

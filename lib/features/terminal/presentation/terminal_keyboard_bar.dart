@@ -52,6 +52,8 @@ class TerminalKeyboardBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safePadding = MediaQuery.paddingOf(context);
+    final isPreset =
+        terminalKeyboardLayoutForRows(rows) != TerminalKeyboardLayout.custom;
     return ListenableBuilder(
       listenable: controller.keyboard,
       builder: (context, _) {
@@ -85,7 +87,19 @@ class TerminalKeyboardBar extends StatelessWidget {
                         index == rows.length - 1 ? 7 : 2,
                       ),
                       children: [
-                        for (final item in row.items) _buildItem(item),
+                        for (final (itemIndex, item) in row.items.indexed) ...[
+                          if (isPreset && itemIndex == 4)
+                            Container(
+                              width: 1,
+                              height: 22,
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 7,
+                              ),
+                              color: palette.hairlineFor(brightness),
+                            ),
+                          _buildItem(item, compact: isPreset),
+                        ],
                       ],
                     ),
                   ),
@@ -97,25 +111,43 @@ class TerminalKeyboardBar extends StatelessWidget {
     );
   }
 
-  Widget _buildItem(TerminalKeyboardItem item) {
+  Widget _buildItem(TerminalKeyboardItem item, {bool compact = false}) {
     final action = item.action;
     if (item.kind == TerminalKeyboardItemKind.builtIn && action != null) {
-      return _buildAction(action);
+      return _buildAction(action, compact: compact);
     }
     return _Key(
       label: item.displayLabel,
       palette: palette,
       brightness: brightness,
+      compact: compact,
       onPressed: () => _triggerCustomItem(item),
     );
   }
 
-  Widget _buildAction(TerminalKeyboardAction action) {
+  Widget _buildAction(
+    TerminalKeyboardAction action, {
+    bool compact = false,
+  }) {
     return switch (action) {
+      TerminalKeyboardAction.more => Builder(
+        builder: (context) => Semantics(
+          button: true,
+          label: 'More keys',
+          child: _Key(
+            icon: Icons.more_horiz_rounded,
+            palette: palette,
+            brightness: brightness,
+            compact: compact,
+            onPressed: () => _showMoreKeys(context),
+          ),
+        ),
+      ),
       TerminalKeyboardAction.control => _ToggleKey(
         label: action.label,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         selected: controller.keyboard.ctrl,
         onPressed: () {
           controller.keyboard.ctrl = !controller.keyboard.ctrl;
@@ -126,6 +158,7 @@ class TerminalKeyboardBar extends StatelessWidget {
         label: action.label,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         selected: controller.keyboard.alt,
         onPressed: () {
           controller.keyboard.alt = !controller.keyboard.alt;
@@ -136,6 +169,7 @@ class TerminalKeyboardBar extends StatelessWidget {
         label: action.label,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         selected: composeActive,
         onPressed: () => onToggleCompose?.call(),
       ),
@@ -145,6 +179,7 @@ class TerminalKeyboardBar extends StatelessWidget {
             : Icons.fullscreen_rounded,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         onPressed: () {
           onToggleFullscreen();
           _focusTerminal();
@@ -154,6 +189,7 @@ class TerminalKeyboardBar extends StatelessWidget {
         icon: Icons.keyboard_arrow_up_rounded,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         repeat: true,
         onPressed: () => _sendKey(TerminalKey.arrowUp),
       ),
@@ -161,6 +197,7 @@ class TerminalKeyboardBar extends StatelessWidget {
         icon: Icons.keyboard_arrow_down_rounded,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         repeat: true,
         onPressed: () => _sendKey(TerminalKey.arrowDown),
       ),
@@ -168,6 +205,7 @@ class TerminalKeyboardBar extends StatelessWidget {
         icon: Icons.keyboard_arrow_left_rounded,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         repeat: true,
         onPressed: () => _sendKey(TerminalKey.arrowLeft),
       ),
@@ -175,6 +213,7 @@ class TerminalKeyboardBar extends StatelessWidget {
         icon: Icons.keyboard_arrow_right_rounded,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         repeat: true,
         onPressed: () => _sendKey(TerminalKey.arrowRight),
       ),
@@ -182,6 +221,7 @@ class TerminalKeyboardBar extends StatelessWidget {
         icon: Icons.content_paste_rounded,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         onPressed: _paste,
       ),
       TerminalKeyboardAction.functionKeys => _MenuKey<TerminalKey>(
@@ -189,6 +229,7 @@ class TerminalKeyboardBar extends StatelessWidget {
         tooltip: 'Function keys',
         palette: palette,
         brightness: brightness,
+        compact: compact,
         onSelected: _sendKey,
         items: [
           for (final item in _functionKeys)
@@ -199,12 +240,14 @@ class TerminalKeyboardBar extends StatelessWidget {
         label: action.label,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         onPressed: _sendTmuxPrefix,
       ),
       TerminalKeyboardAction.tmuxScrollback => _Key(
         label: action.label,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         selected: tmuxScrollMode,
         onPressed: _toggleTmuxScrollMode,
       ),
@@ -213,6 +256,7 @@ class TerminalKeyboardBar extends StatelessWidget {
         tooltip: 'Tmux actions',
         palette: palette,
         brightness: brightness,
+        compact: compact,
         onSelected: _triggerTmuxAction,
         items: [
           for (final action in _TmuxAction.values)
@@ -234,6 +278,7 @@ class TerminalKeyboardBar extends StatelessWidget {
           tooltip: 'Snippets',
           palette: palette,
           brightness: brightness,
+          compact: compact,
           onSelected: (item) => _triggerSnippetMenuItem(context, item),
           items: _snippetMenuItems(),
         ),
@@ -242,10 +287,64 @@ class TerminalKeyboardBar extends StatelessWidget {
         label: action.label,
         palette: palette,
         brightness: brightness,
+        compact: compact,
         repeat: _repeatableActions.contains(action),
         onPressed: () => _triggerAction(action),
       ),
     };
+  }
+
+  void _showMoreKeys(BuildContext context) {
+    final visible = {
+      for (final row in rows)
+        for (final item in row.items)
+          if (item.action != null) item.action!,
+    };
+    final extraKeys = TerminalKeyboardAction.values
+        .where((action) =>
+            action != TerminalKeyboardAction.more && !visible.contains(action))
+        .toList(growable: false);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'More keys',
+                    style: Theme.of(sheetContext).textTheme.titleMedium,
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Close more keys',
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              if (extraKeys.isEmpty)
+                const Text('All available keys are already on your bar.')
+              else
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 10,
+                  children: [
+                    for (final action in extraKeys) _buildAction(action),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _triggerAction(TerminalKeyboardAction action) {
@@ -292,6 +391,7 @@ class TerminalKeyboardBar extends StatelessWidget {
       case TerminalKeyboardAction.tmuxMenu:
       case TerminalKeyboardAction.snippets:
       case TerminalKeyboardAction.compose:
+      case TerminalKeyboardAction.more:
         break;
     }
   }
@@ -634,6 +734,10 @@ const _keyHeight = 36.0;
 const _iconKeyMinWidth = 44.0;
 const _textKeyMinWidth = 46.0;
 const _textKeyHorizontalPadding = 10.0;
+// Compact variants fit all nine Focused keys on a typical phone.
+const _compactIconKeyMinWidth = 34.0;
+const _compactTextKeyMinWidth = 36.0;
+const _compactTextKeyHorizontalPadding = 5.0;
 
 TerminalKey? _controlKeyFor(String? key) {
   return switch (key) {
@@ -676,10 +780,12 @@ class _Key extends StatelessWidget {
     this.icon,
     this.repeat = false,
     this.selected = false,
+    this.compact = false,
   });
 
   final AppPalette palette;
   final Brightness brightness;
+  final bool compact;
   final String? label;
   final IconData? icon;
   final VoidCallback? onPressed;
@@ -708,10 +814,18 @@ class _Key extends StatelessWidget {
       child: Container(
         height: _keyHeight,
         constraints: BoxConstraints(
-          minWidth: isIconKey ? _iconKeyMinWidth : _textKeyMinWidth,
+          minWidth: compact
+              ? (isIconKey
+                    ? _compactIconKeyMinWidth
+                    : _compactTextKeyMinWidth)
+              : (isIconKey ? _iconKeyMinWidth : _textKeyMinWidth),
         ),
         padding: EdgeInsets.symmetric(
-          horizontal: isIconKey ? 0 : _textKeyHorizontalPadding,
+          horizontal: isIconKey
+              ? 0
+              : (compact
+                    ? _compactTextKeyHorizontalPadding
+                    : _textKeyHorizontalPadding),
         ),
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -881,11 +995,13 @@ class _ToggleKey extends StatelessWidget {
     required this.brightness,
     required this.selected,
     required this.onPressed,
+    this.compact = false,
   });
 
   final String label;
   final AppPalette palette;
   final Brightness brightness;
+  final bool compact;
   final bool selected;
   final VoidCallback onPressed;
 
@@ -904,9 +1020,13 @@ class _ToggleKey extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
         height: _keyHeight,
-        constraints: const BoxConstraints(minWidth: _textKeyMinWidth),
-        padding: const EdgeInsets.symmetric(
-          horizontal: _textKeyHorizontalPadding,
+        constraints: BoxConstraints(
+          minWidth: compact ? _compactTextKeyMinWidth : _textKeyMinWidth,
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact
+              ? _compactTextKeyHorizontalPadding
+              : _textKeyHorizontalPadding,
         ),
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -943,8 +1063,10 @@ class _MenuKey<T> extends StatelessWidget {
     required this.onSelected,
     required this.palette,
     required this.brightness,
+    this.compact = false,
   });
 
+  final bool compact;
   final String label;
   final String tooltip;
   final List<PopupMenuEntry<T>> items;
@@ -962,8 +1084,8 @@ class _MenuKey<T> extends StatelessWidget {
         itemBuilder: (context) => items,
         child: Container(
           height: 36,
-          constraints: const BoxConstraints(minWidth: 44),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          constraints: BoxConstraints(minWidth: compact ? 36 : 44),
+          padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 10),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: palette.panelFor(brightness),
