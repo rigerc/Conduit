@@ -2,6 +2,45 @@ enum TerminalFontOption { systemMonospace, atkynsonNerdFont }
 
 enum TerminalEnterSequence { cr, lf, crlf }
 
+enum TerminalCursorShape { block, underline, bar }
+
+extension TerminalCursorShapeLabel on TerminalCursorShape {
+  String get label => switch (this) {
+    TerminalCursorShape.block => 'Block',
+    TerminalCursorShape.underline => 'Underline',
+    TerminalCursorShape.bar => 'Bar',
+  };
+}
+
+// Terminal.maxLines is immutable: changes take effect in newly opened tabs.
+const terminalScrollbackChoices = [1000, 5000, 10000, 50000];
+const terminalScrollbackDefault = 10000;
+int normalizeTerminalScrollback(int value) =>
+    terminalScrollbackChoices.contains(value) ? value : terminalScrollbackDefault;
+
+const terminalLineHeightDefault = 1.2;
+const terminalLineHeightMin = 1.0;
+const terminalLineHeightMax = 1.8;
+double normalizeTerminalLineHeight(num value) =>
+    !value.isFinite ? terminalLineHeightDefault :
+    (value * 10).round().clamp(10, 18) / 10;
+
+const terminalPaddingDefault = 6.0;
+const terminalPaddingMin = 0.0;
+const terminalPaddingMax = 24.0;
+double normalizeTerminalPadding(num value) =>
+    !value.isFinite ? terminalPaddingDefault :
+    (value / 2).round().clamp(0, 12) * 2.0;
+
+const sshKeepAliveChoices = [0, 10, 30, 60, 120];
+const sshKeepAliveDefault = 10;
+int normalizeSshKeepAlive(int seconds) =>
+    sshKeepAliveChoices.contains(seconds) ? seconds : sshKeepAliveDefault;
+Duration? sshKeepAliveDuration(int seconds) {
+  final normalized = normalizeSshKeepAlive(seconds);
+  return normalized == 0 ? null : Duration(seconds: normalized);
+}
+
 const terminalFontSizeDefault = 13.5;
 const terminalFontSizeMin = 4.0;
 const terminalFontSizeMax = 30.0;
