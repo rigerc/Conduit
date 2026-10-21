@@ -266,6 +266,53 @@ void main() {
     expect(controller.terminalEnterSequence, TerminalEnterSequence.crlf);
   });
 
+  testWidgets('key row presets switch between Focused and Two-tier', (
+    tester,
+  ) async {
+    final repository = InMemoryThemePreferences();
+    final controller = ThemeController(repository);
+    await controller.load();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showThemeSheet(
+                context: context,
+                controller: controller,
+              ),
+              child: const Text('Appearance'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Appearance'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.widgetWithText(TextButton, 'Edit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Edit'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('A · Focused'), findsOneWidget);
+    expect(find.text('B · Two-tier'), findsOneWidget);
+    expect(controller.terminalKeyboardRows, focusedTerminalKeyboardRows);
+
+    await tester.tap(find.text('B · Two-tier'));
+    await tester.pumpAndSettle();
+    expect(find.text('Key Rows (2)'), findsOneWidget);
+    expect(controller.terminalKeyboardRows, twoTierTerminalKeyboardRows);
+    expect((await repository.load()).terminalKeyboardRows, twoTierTerminalKeyboardRows);
+
+    await tester.tap(find.text('A · Focused'));
+    await tester.pumpAndSettle();
+    expect(find.text('Key Rows (1)'), findsOneWidget);
+    expect(controller.terminalKeyboardRows, focusedTerminalKeyboardRows);
+    expect((await repository.load()).terminalKeyboardRows, focusedTerminalKeyboardRows);
+  });
+
   testWidgets('key row editor adds and saves a custom text key', (
     tester,
   ) async {
