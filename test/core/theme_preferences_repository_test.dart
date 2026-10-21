@@ -10,6 +10,33 @@ import '../support/test_doubles.dart';
 
 void main() {
   group('ThemePreferencesRepository', () {
+    test('fresh installations use Focused without extra migrated keys', () async {
+      final repository = ThemePreferencesRepository(InMemorySecureStorage());
+      final preferences = await repository.load();
+
+      expect(preferences.terminalKeyboardRows, focusedTerminalKeyboardRows);
+    });
+
+    test('Two-tier keyboard layout survives a settings round-trip', () async {
+      final storage = InMemorySecureStorage();
+      final repository = ThemePreferencesRepository(storage);
+
+      await repository.save(
+        const ThemePreferences(
+          themeMode: ThemeMode.dark,
+          palette: AppPalette.synthwave,
+          terminalKeyboardRows: twoTierTerminalKeyboardRows,
+        ),
+      );
+
+      final restored = await repository.load();
+      expect(restored.terminalKeyboardRows, twoTierTerminalKeyboardRows);
+      expect(
+        terminalKeyboardLayoutForRows(restored.terminalKeyboardRows),
+        TerminalKeyboardLayout.twoTier,
+      );
+    });
+
     test(
       'loads legacy comma-separated keyboard actions as built-in items',
       () async {
