@@ -53,8 +53,14 @@ void main() {
   );
   final localShellController = LocalShellController();
   final terminalRepository = RoutingTerminalRepository(
-    ssh: DartSshTerminalRepository(hostKeyVerifier),
-    mosh: MoshTerminalRepository(hostKeyVerifier),
+    ssh: DartSshTerminalRepository(
+      hostKeyVerifier,
+      keepAliveSeconds: () => themeController.sshKeepAliveSeconds,
+    ),
+    mosh: MoshTerminalRepository(
+      hostKeyVerifier,
+      keepAliveSeconds: () => themeController.sshKeepAliveSeconds,
+    ),
     local: LocalTerminalRepository(
       resolveLaunch: localShellController.requireLaunch,
     ),
@@ -63,7 +69,10 @@ void main() {
     terminalRepository,
     ConnectivityPlusNetwork(),
   );
-  final sftpRepository = DartSshSftpRepository(hostKeyVerifier);
+  final sftpRepository = DartSshSftpRepository(
+    hostKeyVerifier,
+    keepAliveSeconds: () => themeController.sshKeepAliveSeconds,
+  );
   final backupService = AppBackupService(
     hostsController: hostsController,
     themeController: themeController,
@@ -141,6 +150,9 @@ class _ConduitAppState extends State<ConduitApp> with WidgetsBindingObserver {
   void _syncTerminalPreferences() {
     widget.workspaceController.setEnterSequence(
       widget.themeController.terminalEnterSequence,
+    );
+    widget.workspaceController.setScrollbackLines(
+      widget.themeController.terminalScrollbackLines,
     );
   }
 

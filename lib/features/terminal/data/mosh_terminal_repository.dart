@@ -14,11 +14,13 @@ import 'package:dart_mosh/dart_mosh.dart';
 import 'package:dartssh2/dartssh2.dart';
 
 class MoshTerminalRepository implements SshTerminalRepository {
-  const MoshTerminalRepository(this._hostKeyVerifier);
+  const MoshTerminalRepository(this._hostKeyVerifier, {this.keepAliveSeconds});
+
+  final int Function()? keepAliveSeconds;
 
   final HostKeyVerifier _hostKeyVerifier;
 
-  SshClientFactory get _clientFactory => SshClientFactory(_hostKeyVerifier);
+  SshClientFactory get _clientFactory => SshClientFactory(_hostKeyVerifier, keepAliveSeconds: keepAliveSeconds);
 
   @override
   Future<SshTerminalSession> connect(

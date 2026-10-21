@@ -1,4 +1,5 @@
 import 'package:conduit/core/theme/app_palette.dart';
+import 'package:conduit/core/theme/terminal_appearance.dart';
 import 'package:conduit/features/terminal/presentation/terminal_session_controller.dart';
 import 'package:conduit_vt/conduit_vt.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,9 @@ class TerminalSurface extends StatefulWidget {
     required this.brightness,
     required this.fontFamily,
     required this.fontSize,
+    this.cursorShape = TerminalCursorShape.block,
+    this.lineHeight = terminalLineHeightDefault,
+    this.terminalPadding = terminalPaddingDefault,
     required this.onFontSizeChanged,
     required this.predictiveEchoEnabled,
     required this.terminalMouseInput,
@@ -24,6 +28,9 @@ class TerminalSurface extends StatefulWidget {
   final Brightness brightness;
   final String fontFamily;
   final double fontSize;
+  final TerminalCursorShape cursorShape;
+  final double lineHeight;
+  final double terminalPadding;
   final ValueChanged<double> onFontSizeChanged;
   final bool predictiveEchoEnabled;
   final bool terminalMouseInput;
@@ -180,11 +187,16 @@ class _TerminalSurfaceState extends State<TerminalSurface> {
                   textStyle: TerminalStyle(
                     fontFamily: widget.fontFamily,
                     fontSize: widget.fontSize,
+                    height: widget.lineHeight,
                   ),
-                  padding: const EdgeInsets.fromLTRB(0, 6, 0, 4),
-                  cursorType: overlays.isEmpty
-                      ? TerminalCursorType.block
-                      : TerminalCursorType.verticalBar,
+                  padding: EdgeInsets.all(widget.terminalPadding),
+                  cursorType: overlays.isNotEmpty
+                      ? TerminalCursorType.verticalBar
+                      : switch (widget.cursorShape) {
+                          TerminalCursorShape.block => TerminalCursorType.block,
+                          TerminalCursorShape.underline => TerminalCursorType.underline,
+                          TerminalCursorShape.bar => TerminalCursorType.verticalBar,
+                        },
                   alwaysShowCursor: true,
                   simulateScroll: !widget.tmuxScrollMode,
                 );

@@ -10,6 +10,7 @@ class SessionTabs extends StatelessWidget {
     required this.palette,
     required this.brightness,
     required this.onChanged,
+    this.confirmCloseActiveTabs = true,
     super.key,
   });
 
@@ -18,6 +19,7 @@ class SessionTabs extends StatelessWidget {
   final AppPalette palette;
   final Brightness brightness;
   final VoidCallback onChanged;
+  final bool confirmCloseActiveTabs;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +49,26 @@ class SessionTabs extends StatelessWidget {
               onChanged();
             },
             onClose: () async {
+              if (confirmCloseActiveTabs && session.isConnectedOrConnecting) {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    title: const Text('Close active tab?'),
+                    content: Text('Disconnect ${session.title} and close its tab?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(true),
+                        child: const Text('Close tab'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true || !context.mounted) return;
+              }
               await workspace.close(session);
               onChanged();
               if (!context.mounted) return;

@@ -166,6 +166,7 @@ class _TerminalPageState extends State<TerminalPage> {
                         palette: palette,
                         brightness: brightness,
                         onChanged: _focusNode.requestFocus,
+                        confirmCloseActiveTabs: widget.themeController.confirmCloseActiveTabs,
                       ),
                     ],
                     Expanded(
@@ -188,6 +189,9 @@ class _TerminalPageState extends State<TerminalPage> {
                                     .fontFamily,
                                 fontSize:
                                     widget.themeController.terminalFontSize,
+                                cursorShape: widget.themeController.terminalCursorShape,
+                                lineHeight: widget.themeController.terminalLineHeight,
+                                terminalPadding: widget.themeController.terminalPadding,
                                 onFontSizeChanged: (fontSize) {
                                   unawaited(
                                     widget.themeController.setTerminalFontSize(
