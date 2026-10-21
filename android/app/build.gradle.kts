@@ -66,6 +66,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Install debug builds next to a stable release instead of
+            // replacing it.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
