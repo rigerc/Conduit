@@ -52,6 +52,8 @@ class TerminalKeyboardBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safePadding = MediaQuery.paddingOf(context);
+    final isPreset =
+        terminalKeyboardLayoutForRows(rows) != TerminalKeyboardLayout.custom;
     return ListenableBuilder(
       listenable: controller.keyboard,
       builder: (context, _) {
@@ -85,7 +87,19 @@ class TerminalKeyboardBar extends StatelessWidget {
                         index == rows.length - 1 ? 7 : 2,
                       ),
                       children: [
-                        for (final item in row.items) _buildItem(item),
+                        for (final (itemIndex, item) in row.items.indexed) ...[
+                          if (isPreset && itemIndex == 4)
+                            Container(
+                              width: 1,
+                              height: 22,
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 7,
+                              ),
+                              color: palette.hairlineFor(brightness),
+                            ),
+                          _buildItem(item),
+                        ],
                       ],
                     ),
                   ),
@@ -112,6 +126,18 @@ class TerminalKeyboardBar extends StatelessWidget {
 
   Widget _buildAction(TerminalKeyboardAction action) {
     return switch (action) {
+      TerminalKeyboardAction.more => Builder(
+        builder: (context) => Semantics(
+          button: true,
+          label: 'More keys',
+          child: _Key(
+            icon: Icons.more_horiz_rounded,
+            palette: palette,
+            brightness: brightness,
+            onPressed: () => _showMoreKeys(context),
+          ),
+        ),
+      ),
       TerminalKeyboardAction.control => _ToggleKey(
         label: action.label,
         palette: palette,
@@ -248,6 +274,59 @@ class TerminalKeyboardBar extends StatelessWidget {
     };
   }
 
+  void _showMoreKeys(BuildContext context) {
+    final visible = {
+      for (final row in rows)
+        for (final item in row.items)
+          if (item.action != null) item.action!,
+    };
+    final extraKeys = TerminalKeyboardAction.values
+        .where((action) =>
+            action != TerminalKeyboardAction.more && !visible.contains(action))
+        .toList(growable: false);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'More keys',
+                    style: Theme.of(sheetContext).textTheme.titleMedium,
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Close more keys',
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              if (extraKeys.isEmpty)
+                const Text('All available keys are already on your bar.')
+              else
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 10,
+                  children: [
+                    for (final action in extraKeys) _buildAction(action),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _triggerAction(TerminalKeyboardAction action) {
     switch (action) {
       case TerminalKeyboardAction.escape:
@@ -292,6 +371,7 @@ class TerminalKeyboardBar extends StatelessWidget {
       case TerminalKeyboardAction.tmuxMenu:
       case TerminalKeyboardAction.snippets:
       case TerminalKeyboardAction.compose:
+      case TerminalKeyboardAction.more:
         break;
     }
   }
@@ -631,9 +711,10 @@ const _repeatableActions = {
   TerminalKeyboardAction.pageDown,
 };
 const _keyHeight = 36.0;
-const _iconKeyMinWidth = 44.0;
-const _textKeyMinWidth = 46.0;
-const _textKeyHorizontalPadding = 10.0;
+// Sized to show all nine Focused keys on a typical phone without scrolling.
+const _iconKeyMinWidth = 34.0;
+const _textKeyMinWidth = 36.0;
+const _textKeyHorizontalPadding = 5.0;
 
 TerminalKey? _controlKeyFor(String? key) {
   return switch (key) {
@@ -962,8 +1043,8 @@ class _MenuKey<T> extends StatelessWidget {
         itemBuilder: (context) => items,
         child: Container(
           height: 36,
-          constraints: const BoxConstraints(minWidth: 44),
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          constraints: const BoxConstraints(minWidth: 36),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: palette.panelFor(brightness),
