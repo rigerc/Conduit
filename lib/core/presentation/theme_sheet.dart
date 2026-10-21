@@ -11,7 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-Future<void> showThemeSheet({
+Future<void> showGlobalSettingsSheet({
   required BuildContext context,
   required ThemeController controller,
   AppBackupService? backupService,
@@ -25,6 +25,17 @@ Future<void> showThemeSheet({
     ),
   );
 }
+
+// Keep the earlier entry point for callers that still use the appearance name.
+Future<void> showThemeSheet({
+  required BuildContext context,
+  required ThemeController controller,
+  AppBackupService? backupService,
+}) => showGlobalSettingsSheet(
+  context: context,
+  controller: controller,
+  backupService: backupService,
+);
 
 class _ThemeSheet extends StatelessWidget {
   const _ThemeSheet({required this.controller, required this.backupService});
@@ -52,14 +63,14 @@ class _ThemeSheet extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text('Appearance', style: theme.textTheme.headlineSmall),
+                      Text('Global settings', style: theme.textTheme.headlineSmall),
                       const Spacer(),
                       const ConduitGlyph(size: 24),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Pick a developer palette. The home screen, editor, and dialogs share the same look.',
+                    'Preferences are saved on this device and shared by all terminal sessions.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -226,6 +237,8 @@ class _TerminalAppearanceControls extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Text('Font family', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
         SegmentedButton<TerminalFontOption>(
           segments: [
             for (final font in TerminalFontOption.values)
@@ -269,15 +282,57 @@ class _TerminalAppearanceControls extends StatelessWidget {
                   ),
                 ],
               ),
-              Slider(
-                min: terminalFontSizeMin,
-                max: terminalFontSizeMax,
-                divisions: terminalFontSizeDivisions,
-                value: clampTerminalFontSize(controller.terminalFontSize),
-                label: controller.terminalFontSize.toStringAsFixed(1),
-                onChanged: controller.setTerminalFontSize,
+              Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Decrease font size',
+                    onPressed: controller.terminalFontSize <= terminalFontSizeMin
+                        ? null
+                        : () => controller.setTerminalFontSize(
+                            controller.terminalFontSize - terminalFontSizeStep,
+                          ),
+                    icon: const Icon(Icons.remove_rounded),
+                  ),
+                  Expanded(
+                    child: Slider(
+                      min: terminalFontSizeMin,
+                      max: terminalFontSizeMax,
+                      divisions: terminalFontSizeDivisions,
+                      value: clampTerminalFontSize(controller.terminalFontSize),
+                      label: controller.terminalFontSize.toStringAsFixed(1),
+                      onChanged: controller.setTerminalFontSize,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Increase font size',
+                    onPressed: controller.terminalFontSize >= terminalFontSizeMax
+                        ? null
+                        : () => controller.setTerminalFontSize(
+                            controller.terminalFontSize + terminalFontSizeStep,
+                          ),
+                    icon: const Icon(Icons.add_rounded),
+                  ),
+                ],
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: controller.terminalFontSize == terminalFontSizeDefault
+                      ? null
+                      : () => controller.setTerminalFontSize(
+                          terminalFontSizeDefault,
+                        ),
+                  child: const Text('Reset to default'),
+                ),
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Font settings apply to SSH, Mosh, and local terminals.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 14),

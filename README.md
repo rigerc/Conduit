@@ -72,7 +72,10 @@ Dart implementation of the protocol, and the terminal is
 - Saved global and per-machine snippets from the key row, with hidden snippets
   for passwords or secrets and optional per-machine run-on-connect snippets.
 - Optional device-auth app lock for protecting saved machines and credentials.
-- Built-in terminal themes, font sizing, palette choices, and appearance controls.
+- Global settings, accessible from Machines and active terminals, for terminal
+  font family (system monospace or bundled Nerd Font), font size (4-30 in 0.5
+  steps), palettes, appearance, and keyboard controls. Changes apply to all
+  sessions and persist across launches.
 - On-device **local Arch Linux shell** (Android, arm64) with `pacman`, running
   unprivileged via `proot` - no root, no server. Uses Termux-packaged tooling.
 - Full Android build: mount shared phone storage in the local shell at
