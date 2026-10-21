@@ -750,6 +750,44 @@ class _KeyboardRowsEditorState extends State<_KeyboardRowsEditor> {
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Layout presets', style: theme.textTheme.labelLarge),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('A · Focused'),
+                        selected: terminalKeyboardLayoutForRows(_rows) ==
+                            TerminalKeyboardLayout.focused,
+                        onSelected: (_) =>
+                            _applyPreset(focusedTerminalKeyboardRows),
+                      ),
+                      ChoiceChip(
+                        label: const Text('B · Two-tier'),
+                        selected: terminalKeyboardLayoutForRows(_rows) ==
+                            TerminalKeyboardLayout.twoTier,
+                        onSelected: (_) =>
+                            _applyPreset(twoTierTerminalKeyboardRows),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Choosing a preset replaces the current keys and row heights. '
+                    'You can customize either layout below.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: ReorderableListView.builder(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
@@ -921,6 +959,39 @@ class _KeyboardRowsEditorState extends State<_KeyboardRowsEditor> {
     setState(() {
       _rows.insert(newIndex, _rows.removeAt(oldIndex));
       _rowIds.insert(newIndex, _rowIds.removeAt(oldIndex));
+    });
+    _persist();
+  }
+
+  Future<void> _applyPreset(List<TerminalKeyboardRow> preset) async {
+    if (terminalKeyboardLayoutForRows(_rows) == TerminalKeyboardLayout.custom) {
+      final replace = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Replace custom key rows?'),
+          content: const Text(
+            'The preset will replace your current row configuration. '
+            'This cannot be undone from the editor.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Replace'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || replace != true) return;
+    }
+    setState(() {
+      _rows = List.of(preset);
+      _rowIds
+        ..clear()
+        ..addAll([for (final _ in _rows) _nextRowId++]);
     });
     _persist();
   }
@@ -1345,6 +1416,7 @@ IconData _keyboardActionIcon(TerminalKeyboardAction action) {
     TerminalKeyboardAction.tmuxMenu => Icons.view_quilt_rounded,
     TerminalKeyboardAction.snippets => Icons.snippet_folder_rounded,
     TerminalKeyboardAction.compose => Icons.edit_note_rounded,
+    TerminalKeyboardAction.more => Icons.more_horiz_rounded,
   };
 }
 
