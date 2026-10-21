@@ -17,6 +17,8 @@ import 'package:conduit/features/terminal/presentation/host_key_prompt_coordinat
 import 'package:conduit/features/terminal/presentation/terminal_keyboard_bar.dart';
 import 'package:conduit/features/terminal/presentation/terminal_keyboard_controller.dart';
 import 'package:conduit/features/terminal/presentation/terminal_session_controller.dart';
+import 'package:conduit/features/terminal/presentation/terminal_workspace_controller.dart';
+import 'package:conduit/features/terminal/presentation/widgets/session_tabs.dart';
 import 'package:conduit/features/terminal/presentation/widgets/terminal_surface.dart';
 import 'package:conduit_vt/conduit_vt.dart';
 import 'package:crypto/crypto.dart' as crypto;
@@ -30,7 +32,65 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/test_doubles.dart';
 
 void main() {
+  testWidgets('closing an active tab can be cancelled', (tester) async {
+    final remote = TrackableTerminalSession();
+    final workspace = TerminalWorkspaceController(
+      ImmediateTerminalRepository(remote),
+    );
+    addTearDown(workspace.dispose);
+    final session = workspace.open(buildHost('confirm'));
+    await session.connect();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SessionTabs(
+            workspace: workspace,
+            activeSession: session,
+            palette: AppPalette.synthwave,
+            brightness: Brightness.dark,
+            onChanged: () {},
+            confirmCloseActiveTabs: true,
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(find.text('Close active tab?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(workspace.sessions, contains(session));
+    expect(remote.closeCount, 0);
+  });
+
   group('TerminalSessionController', () {
+    test('tracks sessions requiring close confirmation', () async {
+      final session = TrackableTerminalSession();
+      final controller = TerminalSessionController(
+        host: buildHost('confirm-close'),
+        repository: ImmediateTerminalRepository(session),
+      );
+      addTearDown(controller.dispose);
+
+      expect(controller.isConnectedOrConnecting, isFalse);
+      await controller.connect();
+      expect(controller.isConnectedOrConnecting, isTrue);
+      await controller.disconnect();
+      expect(controller.isConnectedOrConnecting, isFalse);
+    });
+
+    test('scrollback settings affect newly opened tabs only', () {
+      final workspace = TerminalWorkspaceController(NoNetworkTerminalRepository());
+      addTearDown(workspace.dispose);
+      workspace.setScrollbackLines(50000);
+      final first = workspace.open(buildHost('scrollback-a'));
+      expect(first.terminal.maxLines, 50000);
+      workspace.setScrollbackLines(1000);
+      expect(first.terminal.maxLines, 50000);
+      final second = workspace.open(buildHost('scrollback-b'));
+      expect(second.terminal.maxLines, 1000);
+    });
+
     test('builds quoted tmux startup command when enabled', () {
       final controller = TerminalSessionController(
         host: buildHost('tmux-create').copyWith(

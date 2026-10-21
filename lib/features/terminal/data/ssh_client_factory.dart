@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:conduit/core/app_failure.dart';
+import 'package:conduit/core/theme/terminal_appearance.dart';
 import 'package:conduit/features/hosts/domain/saved_host.dart';
 import 'package:conduit/features/terminal/data/fido_hardware_key_ctap_device.dart';
 import 'package:conduit/features/terminal/data/openssh_security_key_signer.dart';
@@ -20,6 +21,7 @@ class SshClientFactory {
     this._hostKeyVerifier, {
     OpenSshSecurityKeySigner? securityKeySigner,
     SshKeyPairParser? keyPairParser,
+    int Function()? keepAliveSeconds,
   }) : _securityKeySigner =
            securityKeySigner ??
            OpenSshSecurityKeySigner(
@@ -29,11 +31,13 @@ class SshClientFactory {
              onPinRequest: SecurityKeyInteraction.instance.requestPin,
              onKeySelect: SecurityKeyInteraction.instance.requestKeySelection,
            ),
-       _keyPairParser = keyPairParser ?? SSHKeyPair.fromPem;
+       _keyPairParser = keyPairParser ?? SSHKeyPair.fromPem,
+       _keepAliveSeconds = keepAliveSeconds;
 
   final HostKeyVerifier _hostKeyVerifier;
   final OpenSshSecurityKeySigner _securityKeySigner;
   final SshKeyPairParser _keyPairParser;
+  final int Function()? _keepAliveSeconds;
   SSHKeyPair? _externalAuthIdentity;
 
   Future<SSHClient> connect(SavedHost host) async {
@@ -48,6 +52,7 @@ class SshClientFactory {
       return SSHClient(
         socket,
         username: host.username.trim(),
+        keepAliveInterval: sshKeepAliveDuration(_keepAliveSeconds?.call() ?? sshKeepAliveDefault),
         identities: identities,
         agentHandler: _agentHandlerFor(host, identities),
         onPasswordRequest: _passwordRequestFor(host),

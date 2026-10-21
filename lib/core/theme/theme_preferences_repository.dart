@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:conduit/core/theme/app_palette.dart';
 import 'package:conduit/core/theme/terminal_appearance.dart';
 import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
+import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -12,6 +13,14 @@ class ThemePreferences {
     required this.palette,
     this.terminalFont = TerminalFontOption.atkynsonNerdFont,
     this.terminalFontSize = terminalFontSizeDefault,
+    this.terminalCursorShape = TerminalCursorShape.block,
+    this.terminalScrollbackLines = terminalScrollbackDefault,
+    this.terminalLineHeight = terminalLineHeightDefault,
+    this.terminalPadding = terminalPaddingDefault,
+    this.sshKeepAliveSeconds = sshKeepAliveDefault,
+    this.confirmCloseActiveTabs = true,
+    this.sftpShowHiddenFiles = true,
+    this.sftpSortMode = SftpSortMode.name,
     this.terminalKeyboardRows = defaultTerminalKeyboardRows,
     this.terminalSnippets = const [],
     this.showGlobalSnippets = true,
@@ -25,6 +34,14 @@ class ThemePreferences {
   final AppPalette palette;
   final TerminalFontOption terminalFont;
   final double terminalFontSize;
+  final TerminalCursorShape terminalCursorShape;
+  final int terminalScrollbackLines;
+  final double terminalLineHeight;
+  final double terminalPadding;
+  final int sshKeepAliveSeconds;
+  final bool confirmCloseActiveTabs;
+  final bool sftpShowHiddenFiles;
+  final SftpSortMode sftpSortMode;
   final List<TerminalKeyboardRow> terminalKeyboardRows;
   final List<TerminalSnippet> terminalSnippets;
   final bool showGlobalSnippets;
@@ -41,6 +58,14 @@ class ThemePreferencesRepository {
   static const _paletteKey = 'conduit.palette.v1';
   static const _terminalFontKey = 'conduit.terminal_font.v1';
   static const _terminalFontSizeKey = 'conduit.terminal_font_size.v1';
+  static const _cursorKey = 'conduit.terminal_cursor_shape.v1';
+  static const _scrollbackKey = 'conduit.terminal_scrollback_lines.v1';
+  static const _lineHeightKey = 'conduit.terminal_line_height.v1';
+  static const _paddingKey = 'conduit.terminal_padding.v1';
+  static const _keepAliveKey = 'conduit.ssh_keepalive_seconds.v1';
+  static const _confirmCloseKey = 'conduit.confirm_close_active_tabs.v1';
+  static const _sftpHiddenKey = 'conduit.sftp_show_hidden_files.v1';
+  static const _sftpSortKey = 'conduit.sftp_sort_mode.v1';
   static const _terminalKeyboardActionsKey =
       'conduit.terminal_keyboard_actions.v1';
   static const _terminalKeyboardRowsKey = 'conduit.terminal_keyboard_rows.v1';
@@ -61,6 +86,14 @@ class ThemePreferencesRepository {
     final rawPalette = await _storage.read(key: _paletteKey);
     final rawTerminalFont = await _storage.read(key: _terminalFontKey);
     final rawTerminalFontSize = await _storage.read(key: _terminalFontSizeKey);
+    final rawCursor = await _storage.read(key: _cursorKey);
+    final rawScrollback = await _storage.read(key: _scrollbackKey);
+    final rawLineHeight = await _storage.read(key: _lineHeightKey);
+    final rawPadding = await _storage.read(key: _paddingKey);
+    final rawKeepAlive = await _storage.read(key: _keepAliveKey);
+    final rawConfirmClose = await _storage.read(key: _confirmCloseKey);
+    final rawSftpHidden = await _storage.read(key: _sftpHiddenKey);
+    final rawSftpSort = await _storage.read(key: _sftpSortKey);
     final rawTerminalKeyboardActions = await _storage.read(
       key: _terminalKeyboardActionsKey,
     );
@@ -109,6 +142,28 @@ class ThemePreferencesRepository {
       terminalFontSize: terminalFontSize == null
           ? terminalFontSizeDefault
           : clampTerminalFontSize(terminalFontSize),
+      terminalCursorShape: TerminalCursorShape.values.firstWhere(
+        (value) => value.name == rawCursor,
+        orElse: () => TerminalCursorShape.block,
+      ),
+      terminalScrollbackLines: normalizeTerminalScrollback(
+        int.tryParse(rawScrollback ?? '') ?? terminalScrollbackDefault,
+      ),
+      terminalLineHeight: normalizeTerminalLineHeight(
+        double.tryParse(rawLineHeight ?? '') ?? terminalLineHeightDefault,
+      ),
+      terminalPadding: normalizeTerminalPadding(
+        double.tryParse(rawPadding ?? '') ?? terminalPaddingDefault,
+      ),
+      sshKeepAliveSeconds: normalizeSshKeepAlive(
+        int.tryParse(rawKeepAlive ?? '') ?? sshKeepAliveDefault,
+      ),
+      confirmCloseActiveTabs: rawConfirmClose != 'false',
+      sftpShowHiddenFiles: rawSftpHidden != 'false',
+      sftpSortMode: SftpSortMode.values.firstWhere(
+        (value) => value.name == rawSftpSort,
+        orElse: () => SftpSortMode.name,
+      ),
       terminalKeyboardRows: terminalKeyboardRows,
       terminalSnippets: _parseTerminalSnippets(rawTerminalSnippets),
       showGlobalSnippets: rawShowGlobalSnippets != 'false',
@@ -133,6 +188,14 @@ class ThemePreferencesRepository {
       key: _terminalFontSizeKey,
       value: preferences.terminalFontSize.toStringAsFixed(1),
     );
+    await _storage.write(key: _cursorKey, value: preferences.terminalCursorShape.name);
+    await _storage.write(key: _scrollbackKey, value: preferences.terminalScrollbackLines.toString());
+    await _storage.write(key: _lineHeightKey, value: preferences.terminalLineHeight.toStringAsFixed(1));
+    await _storage.write(key: _paddingKey, value: preferences.terminalPadding.toStringAsFixed(0));
+    await _storage.write(key: _keepAliveKey, value: preferences.sshKeepAliveSeconds.toString());
+    await _storage.write(key: _confirmCloseKey, value: preferences.confirmCloseActiveTabs.toString());
+    await _storage.write(key: _sftpHiddenKey, value: preferences.sftpShowHiddenFiles.toString());
+    await _storage.write(key: _sftpSortKey, value: preferences.sftpSortMode.name);
     await _storage.write(
       key: _terminalKeyboardRowsKey,
       value: jsonEncode([

@@ -6,14 +6,14 @@ import 'package:conduit/features/hosts/domain/saved_host.dart';
 import 'package:conduit/features/sftp/data/tar_archive_builder.dart';
 import 'package:conduit/features/sftp/domain/file_export.dart';
 import 'package:conduit/features/sftp/domain/sftp_entry.dart';
+import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
+export 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
 import 'package:conduit/features/sftp/domain/sftp_repository.dart';
 import 'package:conduit/features/sftp/domain/sftp_session.dart';
 import 'package:conduit/features/terminal/domain/security_key_interaction.dart';
 import 'package:flutter/foundation.dart';
 
 enum SftpBrowserStatus { connecting, ready, failed }
-
-enum SftpSortMode { name, modified, size, type }
 
 class SftpTransfer {
   const SftpTransfer({
@@ -64,7 +64,10 @@ class SftpBrowserController extends ChangeNotifier {
     required this.host,
     required this.repository,
     required this.fileExport,
-  });
+    SftpSortMode initialSortMode = SftpSortMode.name,
+    bool showHiddenFiles = true,
+  }) : _sortMode = initialSortMode,
+       _showHiddenFiles = showHiddenFiles;
 
   final SavedHost host;
   final SftpRepository repository;
@@ -76,7 +79,8 @@ class SftpBrowserController extends ChangeNotifier {
   String _path = '/';
   List<SftpEntry> _entries = const [];
   String _searchQuery = '';
-  SftpSortMode _sortMode = SftpSortMode.name;
+  SftpSortMode _sortMode;
+  bool _showHiddenFiles;
   bool _busy = false;
   SftpTransfer? _transfer;
   String? _securityKeyMessage;
@@ -89,11 +93,12 @@ class SftpBrowserController extends ChangeNotifier {
   List<SftpEntry> get entries => _entries;
   String get searchQuery => _searchQuery;
   SftpSortMode get sortMode => _sortMode;
+  bool get showHiddenFiles => _showHiddenFiles;
   List<SftpEntry> get visibleEntries {
     final query = _searchQuery.trim().toLowerCase();
-    final filtered = query.isEmpty
-        ? List<SftpEntry>.of(_entries)
-        : _entries.where((entry) {
+    final filtered = _entries.where((entry) {
+            if (!_showHiddenFiles && entry.name.startsWith('.')) return false;
+            if (query.isEmpty) return true;
             final haystack = [
               entry.name,
               entry.path,
@@ -127,6 +132,12 @@ class SftpBrowserController extends ChangeNotifier {
 
   void clearSearch() {
     setSearchQuery('');
+  }
+
+  void setShowHiddenFiles(bool value) {
+    if (_showHiddenFiles == value) return;
+    _showHiddenFiles = value;
+    _safeNotify();
   }
 
   void setSortMode(SftpSortMode value) {

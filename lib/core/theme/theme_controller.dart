@@ -2,6 +2,7 @@ import 'package:conduit/core/theme/app_palette.dart';
 import 'package:conduit/core/theme/terminal_appearance.dart';
 import 'package:conduit/core/theme/theme_preferences_repository.dart';
 import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
+import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
 import 'package:flutter/material.dart';
 
 class ThemeController extends ChangeNotifier {
@@ -13,6 +14,14 @@ class ThemeController extends ChangeNotifier {
   AppPalette _palette = AppPalette.synthwave;
   TerminalFontOption _terminalFont = TerminalFontOption.atkynsonNerdFont;
   double _terminalFontSize = terminalFontSizeDefault;
+  TerminalCursorShape _terminalCursorShape = TerminalCursorShape.block;
+  int _terminalScrollbackLines = terminalScrollbackDefault;
+  double _terminalLineHeight = terminalLineHeightDefault;
+  double _terminalPadding = terminalPaddingDefault;
+  int _sshKeepAliveSeconds = sshKeepAliveDefault;
+  bool _confirmCloseActiveTabs = true;
+  bool _sftpShowHiddenFiles = true;
+  SftpSortMode _sftpSortMode = SftpSortMode.name;
   List<TerminalKeyboardRow> _terminalKeyboardRows = defaultTerminalKeyboardRows;
   List<TerminalSnippet> _terminalSnippets = const [];
   bool _showGlobalSnippets = true;
@@ -25,6 +34,14 @@ class ThemeController extends ChangeNotifier {
   AppPalette get palette => _palette;
   TerminalFontOption get terminalFont => _terminalFont;
   double get terminalFontSize => _terminalFontSize;
+  TerminalCursorShape get terminalCursorShape => _terminalCursorShape;
+  int get terminalScrollbackLines => _terminalScrollbackLines;
+  double get terminalLineHeight => _terminalLineHeight;
+  double get terminalPadding => _terminalPadding;
+  int get sshKeepAliveSeconds => _sshKeepAliveSeconds;
+  bool get confirmCloseActiveTabs => _confirmCloseActiveTabs;
+  bool get sftpShowHiddenFiles => _sftpShowHiddenFiles;
+  SftpSortMode get sftpSortMode => _sftpSortMode;
   List<TerminalKeyboardRow> get terminalKeyboardRows =>
       List.unmodifiable(_terminalKeyboardRows);
   List<TerminalSnippet> get terminalSnippets =>
@@ -41,6 +58,14 @@ class ThemeController extends ChangeNotifier {
     _palette = preferences.palette;
     _terminalFont = preferences.terminalFont;
     _terminalFontSize = preferences.terminalFontSize;
+    _terminalCursorShape = preferences.terminalCursorShape;
+    _terminalScrollbackLines = preferences.terminalScrollbackLines;
+    _terminalLineHeight = preferences.terminalLineHeight;
+    _terminalPadding = preferences.terminalPadding;
+    _sshKeepAliveSeconds = preferences.sshKeepAliveSeconds;
+    _confirmCloseActiveTabs = preferences.confirmCloseActiveTabs;
+    _sftpShowHiddenFiles = preferences.sftpShowHiddenFiles;
+    _sftpSortMode = preferences.sftpSortMode;
     _terminalKeyboardRows = List.of(preferences.terminalKeyboardRows);
     _terminalSnippets = List.of(preferences.terminalSnippets);
     _showGlobalSnippets = preferences.showGlobalSnippets;
@@ -84,6 +109,66 @@ class ThemeController extends ChangeNotifier {
       return;
     }
     _terminalFontSize = normalized;
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setTerminalCursorShape(TerminalCursorShape value) async {
+    if (_terminalCursorShape == value) return;
+    _terminalCursorShape = value;
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setTerminalScrollbackLines(int value) async {
+    final next = normalizeTerminalScrollback(value);
+    if (_terminalScrollbackLines == next) return;
+    _terminalScrollbackLines = next;
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setTerminalLineHeight(double value) async {
+    final next = normalizeTerminalLineHeight(value);
+    if (_terminalLineHeight == next) return;
+    _terminalLineHeight = next;
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setTerminalPadding(double value) async {
+    final next = normalizeTerminalPadding(value);
+    if (_terminalPadding == next) return;
+    _terminalPadding = next;
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setSshKeepAliveSeconds(int value) async {
+    final next = normalizeSshKeepAlive(value);
+    if (_sshKeepAliveSeconds == next) return;
+    _sshKeepAliveSeconds = next;
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setConfirmCloseActiveTabs(bool value) async {
+    if (_confirmCloseActiveTabs == value) return;
+    _confirmCloseActiveTabs = value;
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setSftpShowHiddenFiles(bool value) async {
+    if (_sftpShowHiddenFiles == value) return;
+    _sftpShowHiddenFiles = value;
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setSftpSortMode(SftpSortMode value) async {
+    if (_sftpSortMode == value) return;
+    _sftpSortMode = value;
     notifyListeners();
     await _save();
   }
@@ -195,6 +280,14 @@ class ThemeController extends ChangeNotifier {
         palette: _palette,
         terminalFont: _terminalFont,
         terminalFontSize: _terminalFontSize,
+        terminalCursorShape: _terminalCursorShape,
+        terminalScrollbackLines: _terminalScrollbackLines,
+        terminalLineHeight: _terminalLineHeight,
+        terminalPadding: _terminalPadding,
+        sshKeepAliveSeconds: _sshKeepAliveSeconds,
+        confirmCloseActiveTabs: _confirmCloseActiveTabs,
+        sftpShowHiddenFiles: _sftpShowHiddenFiles,
+        sftpSortMode: _sftpSortMode,
         terminalKeyboardRows: _terminalKeyboardRows,
         terminalSnippets: _terminalSnippets,
         showGlobalSnippets: _showGlobalSnippets,

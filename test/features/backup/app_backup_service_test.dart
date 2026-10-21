@@ -8,6 +8,7 @@ import 'package:conduit/features/backup/data/app_backup_service.dart';
 import 'package:conduit/features/hosts/domain/saved_host.dart';
 import 'package:conduit/features/hosts/domain/saved_hosts_repository.dart';
 import 'package:conduit/features/hosts/presentation/hosts_controller.dart';
+import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
 import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
 import 'package:conduit/features/terminal/domain/host_key_verifier.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +27,31 @@ void main() {
   });
 
   group('AppBackupService', () {
+    test('backs up and restores global terminal and SFTP settings', () async {
+      final source = await _Fixture.create();
+      await source.themeController.setTerminalCursorShape(TerminalCursorShape.bar);
+      await source.themeController.setTerminalScrollbackLines(50000);
+      await source.themeController.setTerminalLineHeight(1.5);
+      await source.themeController.setTerminalPadding(10);
+      await source.themeController.setSshKeepAliveSeconds(0);
+      await source.themeController.setConfirmCloseActiveTabs(false);
+      await source.themeController.setSftpShowHiddenFiles(false);
+      await source.themeController.setSftpSortMode(SftpSortMode.modified);
+
+      final bytes = await source.service.exportBackup(includeSecrets: false);
+      final target = await _Fixture.create(empty: true);
+      await target.service.importBackup(bytes);
+      final saved = target.themeController;
+      expect(saved.terminalCursorShape, TerminalCursorShape.bar);
+      expect(saved.terminalScrollbackLines, 50000);
+      expect(saved.terminalLineHeight, 1.5);
+      expect(saved.terminalPadding, 10);
+      expect(saved.sshKeepAliveSeconds, 0);
+      expect(saved.confirmCloseActiveTabs, isFalse);
+      expect(saved.sftpShowHiddenFiles, isFalse);
+      expect(saved.sftpSortMode, SftpSortMode.modified);
+    });
+
     test('backs up and restores global snippet settings', () async {
       final source = await _Fixture.create();
       await source.themeController.setShowGlobalSnippets(false);
