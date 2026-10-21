@@ -19,7 +19,7 @@ class ThemePreferences {
     this.terminalPadding = terminalPaddingDefault,
     this.sshKeepAliveSeconds = sshKeepAliveDefault,
     this.confirmCloseActiveTabs = true,
-    this.sftpShowHiddenFiles = false,
+    this.sftpShowHiddenFiles = true,
     this.sftpSortMode = SftpSortMode.name,
     this.terminalKeyboardRows = defaultTerminalKeyboardRows,
     this.terminalSnippets = const [],
@@ -146,7 +146,7 @@ class ThemePreferencesRepository {
         int.tryParse(rawKeepAlive ?? '') ?? sshKeepAliveDefault,
       ),
       confirmCloseActiveTabs: rawConfirmClose != 'false',
-      sftpShowHiddenFiles: rawSftpHidden == 'true',
+      sftpShowHiddenFiles: rawSftpHidden != 'false',
       sftpSortMode: SftpSortMode.values.firstWhere(
         (value) => value.name == rawSftpSort,
         orElse: () => SftpSortMode.name,

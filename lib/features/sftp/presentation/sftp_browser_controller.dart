@@ -65,7 +65,7 @@ class SftpBrowserController extends ChangeNotifier {
     required this.repository,
     required this.fileExport,
     SftpSortMode initialSortMode = SftpSortMode.name,
-    bool showHiddenFiles = false,
+    bool showHiddenFiles = true,
   }) : _sortMode = initialSortMode,
        _showHiddenFiles = showHiddenFiles;
 

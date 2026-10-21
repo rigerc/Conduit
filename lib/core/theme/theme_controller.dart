@@ -20,7 +20,7 @@ class ThemeController extends ChangeNotifier {
   double _terminalPadding = terminalPaddingDefault;
   int _sshKeepAliveSeconds = sshKeepAliveDefault;
   bool _confirmCloseActiveTabs = true;
-  bool _sftpShowHiddenFiles = false;
+  bool _sftpShowHiddenFiles = true;
   SftpSortMode _sftpSortMode = SftpSortMode.name;
   List<TerminalKeyboardRow> _terminalKeyboardRows = defaultTerminalKeyboardRows;
   List<TerminalSnippet> _terminalSnippets = const [];
