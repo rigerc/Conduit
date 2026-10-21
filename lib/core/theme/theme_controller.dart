@@ -24,6 +24,8 @@ class ThemeController extends ChangeNotifier {
   SftpSortMode _sftpSortMode = SftpSortMode.name;
   List<TerminalKeyboardRow> _terminalKeyboardRows = defaultTerminalKeyboardRows;
   List<TerminalSnippet> _terminalSnippets = const [];
+  bool _showGlobalSnippets = true;
+  bool _confirmGlobalSnippetSend = false;
   bool _showLocalShell = true;
   bool _terminalMouseInput = false;
   TerminalEnterSequence _terminalEnterSequence = TerminalEnterSequence.cr;
@@ -44,6 +46,8 @@ class ThemeController extends ChangeNotifier {
       List.unmodifiable(_terminalKeyboardRows);
   List<TerminalSnippet> get terminalSnippets =>
       List.unmodifiable(_terminalSnippets);
+  bool get showGlobalSnippets => _showGlobalSnippets;
+  bool get confirmGlobalSnippetSend => _confirmGlobalSnippetSend;
   bool get showLocalShell => _showLocalShell;
   bool get terminalMouseInput => _terminalMouseInput;
   TerminalEnterSequence get terminalEnterSequence => _terminalEnterSequence;
@@ -64,6 +68,8 @@ class ThemeController extends ChangeNotifier {
     _sftpSortMode = preferences.sftpSortMode;
     _terminalKeyboardRows = List.of(preferences.terminalKeyboardRows);
     _terminalSnippets = List.of(preferences.terminalSnippets);
+    _showGlobalSnippets = preferences.showGlobalSnippets;
+    _confirmGlobalSnippetSend = preferences.confirmGlobalSnippetSend;
     _showLocalShell = preferences.showLocalShell;
     _terminalMouseInput = preferences.terminalMouseInput;
     _terminalEnterSequence = preferences.terminalEnterSequence;
@@ -222,6 +228,24 @@ class ThemeController extends ChangeNotifier {
     await _save();
   }
 
+  Future<void> setShowGlobalSnippets(bool value) async {
+    if (_showGlobalSnippets == value) {
+      return;
+    }
+    _showGlobalSnippets = value;
+    notifyListeners();
+    await _save();
+  }
+
+  Future<void> setConfirmGlobalSnippetSend(bool value) async {
+    if (_confirmGlobalSnippetSend == value) {
+      return;
+    }
+    _confirmGlobalSnippetSend = value;
+    notifyListeners();
+    await _save();
+  }
+
   Future<void> setShowLocalShell(bool show) async {
     if (_showLocalShell == show) {
       return;
@@ -266,6 +290,8 @@ class ThemeController extends ChangeNotifier {
         sftpSortMode: _sftpSortMode,
         terminalKeyboardRows: _terminalKeyboardRows,
         terminalSnippets: _terminalSnippets,
+        showGlobalSnippets: _showGlobalSnippets,
+        confirmGlobalSnippetSend: _confirmGlobalSnippetSend,
         showLocalShell: _showLocalShell,
         terminalMouseInput: _terminalMouseInput,
         terminalEnterSequence: _terminalEnterSequence,

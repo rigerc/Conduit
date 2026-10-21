@@ -23,6 +23,8 @@ class ThemePreferences {
     this.sftpSortMode = SftpSortMode.name,
     this.terminalKeyboardRows = defaultTerminalKeyboardRows,
     this.terminalSnippets = const [],
+    this.showGlobalSnippets = true,
+    this.confirmGlobalSnippetSend = false,
     this.showLocalShell = true,
     this.terminalMouseInput = false,
     this.terminalEnterSequence = TerminalEnterSequence.cr,
@@ -42,6 +44,8 @@ class ThemePreferences {
   final SftpSortMode sftpSortMode;
   final List<TerminalKeyboardRow> terminalKeyboardRows;
   final List<TerminalSnippet> terminalSnippets;
+  final bool showGlobalSnippets;
+  final bool confirmGlobalSnippetSend;
   final bool showLocalShell;
   final bool terminalMouseInput;
   final TerminalEnterSequence terminalEnterSequence;
@@ -68,6 +72,9 @@ class ThemePreferencesRepository {
   static const _terminalKeyboardSeenActionsKey =
       'conduit.terminal_keyboard_seen_actions.v1';
   static const _terminalSnippetsKey = 'conduit.terminal_snippets.v1';
+  static const _showGlobalSnippetsKey = 'conduit.show_global_snippets.v1';
+  static const _confirmGlobalSnippetSendKey =
+      'conduit.confirm_global_snippet_send.v1';
   static const _showLocalShellKey = 'conduit.show_local_shell.v1';
   static const _terminalMouseInputKey = 'conduit.terminal_mouse_input.v1';
   static const _terminalEnterSequenceKey = 'conduit.terminal_enter_sequence.v1';
@@ -97,6 +104,12 @@ class ThemePreferencesRepository {
       key: _terminalKeyboardSeenActionsKey,
     );
     final rawTerminalSnippets = await _storage.read(key: _terminalSnippetsKey);
+    final rawShowGlobalSnippets = await _storage.read(
+      key: _showGlobalSnippetsKey,
+    );
+    final rawConfirmGlobalSnippetSend = await _storage.read(
+      key: _confirmGlobalSnippetSendKey,
+    );
     final rawShowLocalShell = await _storage.read(key: _showLocalShellKey);
     final rawTerminalMouseInput = await _storage.read(
       key: _terminalMouseInputKey,
@@ -153,6 +166,8 @@ class ThemePreferencesRepository {
       ),
       terminalKeyboardRows: terminalKeyboardRows,
       terminalSnippets: _parseTerminalSnippets(rawTerminalSnippets),
+      showGlobalSnippets: rawShowGlobalSnippets != 'false',
+      confirmGlobalSnippetSend: rawConfirmGlobalSnippetSend == 'true',
       showLocalShell: rawShowLocalShell == null || rawShowLocalShell == 'true',
       terminalMouseInput: rawTerminalMouseInput == 'true',
       terminalEnterSequence: TerminalEnterSequence.values.firstWhere(
@@ -204,6 +219,14 @@ class ThemePreferencesRepository {
             .map((snippet) => snippet.toJson())
             .toList(),
       ),
+    );
+    await _storage.write(
+      key: _showGlobalSnippetsKey,
+      value: preferences.showGlobalSnippets.toString(),
+    );
+    await _storage.write(
+      key: _confirmGlobalSnippetSendKey,
+      value: preferences.confirmGlobalSnippetSend.toString(),
     );
     await _storage.write(
       key: _showLocalShellKey,

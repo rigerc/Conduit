@@ -697,6 +697,135 @@ void main() {
       ]);
     });
 
+    testWidgets('hidden global snippets do not hide host snippets', (
+      tester,
+    ) async {
+      final controller = _RecordingTerminalSessionController(
+        host: buildHost('snippets-visibility').copyWith(
+          snippets: const [
+            TerminalSnippet(
+              id: 'host:one',
+              label: 'Host snippet',
+              text: 'echo host',
+            ),
+          ],
+        ),
+      );
+      final focusNode = FocusNode();
+      addTearDown(focusNode.dispose);
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TerminalKeyboardBar(
+              controller: controller,
+              focusNode: focusNode,
+              palette: AppPalette.catppuccin,
+              brightness: Brightness.dark,
+              rows: const [
+                TerminalKeyboardRow(
+                  items: [
+                    TerminalKeyboardItem.builtIn(
+                      TerminalKeyboardAction.snippets,
+                    ),
+                  ],
+                ),
+              ],
+              globalSnippets: const [
+                TerminalSnippet(
+                  id: 'global:one',
+                  label: 'Global snippet',
+                  text: 'echo global',
+                ),
+              ],
+              showGlobalSnippets: false,
+              confirmGlobalSnippetSend: true,
+              fullscreen: false,
+              onToggleFullscreen: () {},
+              onEnterTmuxScrollMode: () {},
+              onExitTmuxScrollMode: () {},
+              tmuxPrefixKey: TmuxPrefixKey.controlB,
+              tmuxScrollMode: false,
+            ),
+          ),
+        ),
+      );
+
+      await _openSnippetsMenu(tester);
+      expect(find.text('Host snippet'), findsOneWidget);
+      expect(find.text('Global snippet'), findsNothing);
+      await tester.tap(find.text('Host snippet'));
+      expect(controller.sentText, ['echo host\r']);
+    });
+
+    testWidgets('confirming a global snippet never reveals hidden text', (
+      tester,
+    ) async {
+      final controller = _RecordingTerminalSessionController(
+        host: buildHost('snippets-confirm'),
+      );
+      final focusNode = FocusNode();
+      addTearDown(focusNode.dispose);
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TerminalKeyboardBar(
+              controller: controller,
+              focusNode: focusNode,
+              palette: AppPalette.catppuccin,
+              brightness: Brightness.dark,
+              rows: const [
+                TerminalKeyboardRow(
+                  items: [
+                    TerminalKeyboardItem.builtIn(
+                      TerminalKeyboardAction.snippets,
+                    ),
+                  ],
+                ),
+              ],
+              globalSnippets: const [
+                TerminalSnippet(
+                  id: 'global:secret',
+                  label: 'Secret command',
+                  text: 'sensitive-payload',
+                  hidden: true,
+                  submit: false,
+                ),
+              ],
+              confirmGlobalSnippetSend: true,
+              fullscreen: false,
+              onToggleFullscreen: () {},
+              onEnterTmuxScrollMode: () {},
+              onExitTmuxScrollMode: () {},
+              tmuxPrefixKey: TmuxPrefixKey.controlB,
+              tmuxScrollMode: false,
+            ),
+          ),
+        ),
+      );
+
+      await _openSnippetsMenu(tester);
+      await tester.tap(find.text('Secret command'));
+      await tester.pumpAndSettle();
+      expect(find.text('Send global snippet?'), findsOneWidget);
+      expect(find.text('sensitive-payload'), findsNothing);
+      expect(controller.sentText, isEmpty);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(controller.sentText, isEmpty);
+
+      await _openSnippetsMenu(tester);
+      await tester.tap(find.text('Secret command'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Send'));
+      await tester.pumpAndSettle();
+      expect(controller.sentText, ['sensitive-payload']);
+    });
+
     testWidgets('tmux scroll key enters scrollback mode', (tester) async {
       final controller = _RecordingTerminalSessionController();
       final focusNode = FocusNode();

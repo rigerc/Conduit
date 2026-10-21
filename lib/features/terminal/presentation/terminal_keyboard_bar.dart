@@ -19,6 +19,8 @@ class TerminalKeyboardBar extends StatelessWidget {
     required this.brightness,
     required this.rows,
     required this.globalSnippets,
+    this.showGlobalSnippets = true,
+    this.confirmGlobalSnippetSend = false,
     required this.fullscreen,
     required this.onToggleFullscreen,
     this.composeActive = false,
@@ -36,6 +38,8 @@ class TerminalKeyboardBar extends StatelessWidget {
   final Brightness brightness;
   final List<TerminalKeyboardRow> rows;
   final List<TerminalSnippet> globalSnippets;
+  final bool showGlobalSnippets;
+  final bool confirmGlobalSnippetSend;
   final bool fullscreen;
   final VoidCallback onToggleFullscreen;
   final bool composeActive;
@@ -224,13 +228,15 @@ class TerminalKeyboardBar extends StatelessWidget {
             ),
         ],
       ),
-      TerminalKeyboardAction.snippets => _MenuKey<_SnippetMenuItem>(
-        label: action.label,
-        tooltip: 'Snippets',
-        palette: palette,
-        brightness: brightness,
-        onSelected: _triggerSnippetMenuItem,
-        items: _snippetMenuItems(),
+      TerminalKeyboardAction.snippets => Builder(
+        builder: (context) => _MenuKey<_SnippetMenuItem>(
+          label: action.label,
+          tooltip: 'Snippets',
+          palette: palette,
+          brightness: brightness,
+          onSelected: (item) => _triggerSnippetMenuItem(context, item),
+          items: _snippetMenuItems(),
+        ),
       ),
       _ => _Key(
         label: action.label,
@@ -292,7 +298,11 @@ class TerminalKeyboardBar extends StatelessWidget {
 
   List<PopupMenuEntry<_SnippetMenuItem>> _snippetMenuItems() {
     final entries = <PopupMenuEntry<_SnippetMenuItem>>[];
-    void addSnippetGroup(String label, List<TerminalSnippet> snippets) {
+    void addSnippetGroup(
+      String label,
+      List<TerminalSnippet> snippets, {
+      bool isGlobal = false,
+    }) {
       final valid = snippets.where((snippet) => snippet.isValid).toList();
       if (valid.isEmpty) {
         return;
@@ -304,7 +314,7 @@ class TerminalKeyboardBar extends StatelessWidget {
       for (final snippet in valid) {
         entries.add(
           PopupMenuItem(
-            value: _SnippetMenuItem.snippet(snippet),
+            value: _SnippetMenuItem.snippet(snippet, isGlobal: isGlobal),
             child: _SnippetMenuRow(snippet: snippet),
           ),
         );
@@ -312,7 +322,9 @@ class TerminalKeyboardBar extends StatelessWidget {
     }
 
     addSnippetGroup('Host', controller.host.snippets);
-    addSnippetGroup('Global', globalSnippets);
+    if (showGlobalSnippets) {
+      addSnippetGroup('Global', globalSnippets, isGlobal: true);
+    }
     if (controller.host.password.isNotEmpty) {
       if (entries.isNotEmpty) {
         entries.add(const PopupMenuDivider(height: 8));
@@ -341,9 +353,38 @@ class TerminalKeyboardBar extends StatelessWidget {
     return entries;
   }
 
-  void _triggerSnippetMenuItem(_SnippetMenuItem item) {
+  Future<void> _triggerSnippetMenuItem(
+    BuildContext context,
+    _SnippetMenuItem item,
+  ) async {
     switch (item) {
-      case _SnippetMenuSnippet(:final snippet):
+      case _SnippetMenuSnippet(:final snippet, :final isGlobal):
+        if (isGlobal && confirmGlobalSnippetSend) {
+          final confirmed = await showDialog<bool>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Send global snippet?'),
+              content: Text(
+                'Send "${snippet.label}" to the current terminal'
+                '${snippet.submit ? ' and press Enter' : ''}?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Send'),
+                ),
+              ],
+            ),
+          );
+          if (!context.mounted || confirmed != true) {
+            _focusTerminal();
+            return;
+          }
+        }
         _sendSnippet(snippet);
       case _SnippetMenuPassword(:final password):
         _sendText(password);
@@ -449,16 +490,19 @@ class TerminalKeyboardBar extends StatelessWidget {
 sealed class _SnippetMenuItem {
   const _SnippetMenuItem();
 
-  factory _SnippetMenuItem.snippet(TerminalSnippet snippet) =
-      _SnippetMenuSnippet;
+  factory _SnippetMenuItem.snippet(
+    TerminalSnippet snippet, {
+    bool isGlobal = false,
+  }) = _SnippetMenuSnippet;
 
   factory _SnippetMenuItem.password(String password) = _SnippetMenuPassword;
 }
 
 class _SnippetMenuSnippet extends _SnippetMenuItem {
-  const _SnippetMenuSnippet(this.snippet);
+  const _SnippetMenuSnippet(this.snippet, {this.isGlobal = false});
 
   final TerminalSnippet snippet;
+  final bool isGlobal;
 }
 
 class _SnippetMenuPassword extends _SnippetMenuItem {

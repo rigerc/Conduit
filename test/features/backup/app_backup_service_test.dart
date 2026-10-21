@@ -9,6 +9,7 @@ import 'package:conduit/features/hosts/domain/saved_host.dart';
 import 'package:conduit/features/hosts/domain/saved_hosts_repository.dart';
 import 'package:conduit/features/hosts/presentation/hosts_controller.dart';
 import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
+import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
 import 'package:conduit/features/terminal/domain/host_key_verifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,6 +50,28 @@ void main() {
       expect(saved.confirmCloseActiveTabs, isFalse);
       expect(saved.sftpShowHiddenFiles, isFalse);
       expect(saved.sftpSortMode, SftpSortMode.modified);
+    });
+
+    test('backs up and restores global snippet settings', () async {
+      final source = await _Fixture.create();
+      await source.themeController.setShowGlobalSnippets(false);
+      await source.themeController.setConfirmGlobalSnippetSend(true);
+      await source.themeController.setTerminalSnippets([
+        const TerminalSnippet(
+          id: 'global:one',
+          label: 'Restart service',
+          text: 'sudo systemctl restart example',
+        ),
+      ]);
+
+      final bytes = await source.service.exportBackup(includeSecrets: false);
+      final target = await _Fixture.create(empty: true);
+      await target.service.importBackup(bytes);
+
+      expect(target.themeController.showGlobalSnippets, isFalse);
+      expect(target.themeController.confirmGlobalSnippetSend, isTrue);
+      expect(target.themeController.terminalSnippets, hasLength(1));
+      expect(target.themeController.terminalSnippets.first.label, 'Restart service');
     });
 
     test('exports public backups without login secrets', () async {
