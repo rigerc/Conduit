@@ -72,6 +72,10 @@ class _ThemeSheet extends StatelessWidget {
                   const ConduitSectionLabel('Terminal'),
                   const SizedBox(height: 10),
                   _TerminalAppearanceControls(controller: controller),
+                  const SizedBox(height: 22),
+                  const ConduitSectionLabel('Global snippets'),
+                  const SizedBox(height: 10),
+                  _GlobalSnippetSettings(controller: controller),
                   if (defaultTargetPlatform == TargetPlatform.android) ...[
                     const SizedBox(height: 22),
                     const ConduitSectionLabel('Home'),
@@ -400,6 +404,55 @@ class _TerminalAppearanceControls extends StatelessWidget {
             onChanged: controller.setTerminalMouseInput,
           ),
         ),
+
+      ],
+    );
+  }
+}
+
+class _GlobalSnippetSettings extends StatelessWidget {
+  const _GlobalSnippetSettings({required this.controller});
+
+  final ThemeController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final border = BorderSide(color: colorScheme.outlineVariant);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            side: border,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.snippet_folder_outlined),
+                title: const Text('Show global snippets'),
+                subtitle: const Text(
+                  'Include global snippets in the Snip menu on every machine.',
+                ),
+                value: controller.showGlobalSnippets,
+                onChanged: controller.setShowGlobalSnippets,
+              ),
+              Divider(height: 1, color: colorScheme.outlineVariant),
+              SwitchListTile(
+                secondary: const Icon(Icons.verified_user_outlined),
+                title: const Text('Confirm before sending'),
+                subtitle: const Text(
+                  'Ask before sending a global snippet to a terminal.',
+                ),
+                value: controller.confirmGlobalSnippetSend,
+                onChanged: controller.setConfirmGlobalSnippetSend,
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -409,8 +462,10 @@ class _TerminalAppearanceControls extends StatelessWidget {
             border: Border.all(color: colorScheme.outlineVariant),
           ),
           child: SnippetListEditor(
-            title: 'Global snippets',
-            caption: 'Shown from the Snip key-row menu on every machine.',
+            title: 'Manage global snippets',
+            caption: 'Add, edit, or remove snippets shared by all machines. '
+                'Hidden snippets remain obscured in the menu. '
+                'Hiding global snippets from the menu does not delete them.',
             snippets: controller.terminalSnippets,
             onChanged: controller.setTerminalSnippets,
           ),

@@ -260,6 +260,9 @@ class _TerminalPageState extends State<TerminalPage> {
                         brightness: brightness,
                         rows: widget.themeController.terminalKeyboardRows,
                         globalSnippets: widget.themeController.terminalSnippets,
+                        showGlobalSnippets: widget.themeController.showGlobalSnippets,
+                        confirmGlobalSnippetSend:
+                            widget.themeController.confirmGlobalSnippetSend,
                         fullscreen: _fullscreen,
                         onToggleFullscreen: _toggleFullscreen,
                         composeActive: _composeMode,
