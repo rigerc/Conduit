@@ -1,12 +1,67 @@
 import 'package:conduit/core/presentation/theme_sheet.dart';
 import 'package:conduit/core/theme/terminal_appearance.dart';
 import 'package:conduit/core/theme/theme_controller.dart';
+import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/test_doubles.dart';
 
 void main() {
+  testWidgets('global snippet settings toggle without deleting snippets', (
+    tester,
+  ) async {
+    final controller = ThemeController(InMemoryThemePreferences());
+    await controller.load();
+    await controller.setTerminalSnippets([
+      const TerminalSnippet(
+        id: 'global:test',
+        label: 'List files',
+        text: 'ls -la',
+      ),
+    ]);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () =>
+                  showThemeSheet(context: context, controller: controller),
+              child: const Text('Appearance'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Appearance'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Show global snippets'),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Confirm before sending'), findsOneWidget);
+    expect(controller.showGlobalSnippets, isTrue);
+    expect(controller.confirmGlobalSnippetSend, isFalse);
+
+    await tester.tap(find.text('Show global snippets'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm before sending'));
+    await tester.pumpAndSettle();
+
+    expect(controller.showGlobalSnippets, isFalse);
+    expect(controller.confirmGlobalSnippetSend, isTrue);
+    await tester.scrollUntilVisible(
+      find.text('Manage global snippets'),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('List files'), findsOneWidget);
+    expect(controller.terminalSnippets, hasLength(1));
+  });
+
   testWidgets('appearance sheet toggles local shell visibility', (
     tester,
   ) async {
