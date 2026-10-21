@@ -16,6 +16,7 @@ class TerminalWorkspaceController extends ChangeNotifier {
   final List<TerminalSessionController> _sessions = [];
   int _activeIndex = 0;
   TerminalEnterSequence _enterSequence = TerminalEnterSequence.cr;
+  int _scrollbackLines = terminalScrollbackDefault;
 
   List<TerminalSessionController> get sessions => List.unmodifiable(_sessions);
 
@@ -45,6 +46,11 @@ class TerminalWorkspaceController extends ChangeNotifier {
     }
   }
 
+  void setScrollbackLines(int lines) {
+    // Terminal.maxLines is immutable: existing tabs retain their buffer size.
+    _scrollbackLines = normalizeTerminalScrollback(lines);
+  }
+
   TerminalSessionController open(SavedHost host) {
     final existingIndex = _sessions.indexWhere(
       (session) => session.host.id == host.id,
@@ -61,6 +67,7 @@ class TerminalWorkspaceController extends ChangeNotifier {
       connectivity: _connectivity,
       predictiveEchoEnabled: host.predictiveEchoEnabled,
       enterSequence: _enterSequence,
+      scrollbackLines: _scrollbackLines,
     );
     session.addListener(notifyListeners);
     _sessions.add(session);

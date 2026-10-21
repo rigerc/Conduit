@@ -177,6 +177,34 @@ void main() {
       },
     );
 
+    test('filters dotfiles and respects hidden-file toggle', () async {
+      const hidden = SftpEntry(
+        name: '.ssh',
+        path: '/home/user/.ssh',
+        kind: SftpEntryKind.directory,
+      );
+      session.tree['/home/user'] = [dir, hidden, file];
+      await controller.connect();
+      expect(controller.visibleEntries, [hidden, dir, file]);
+      controller.setShowHiddenFiles(false);
+      expect(controller.visibleEntries, [dir, file]);
+      controller.setShowHiddenFiles(true);
+      expect(controller.visibleEntries, [hidden, dir, file]);
+    });
+
+    test('accepts initial SFTP preferences', () async {
+      final custom = SftpBrowserController(
+        host: buildHost('custom'),
+        repository: FakeSftpRepository(session),
+        fileExport: export,
+        initialSortMode: SftpSortMode.size,
+        showHiddenFiles: true,
+      );
+      addTearDown(custom.dispose);
+      expect(custom.sortMode, SftpSortMode.size);
+      expect(custom.showHiddenFiles, isTrue);
+    });
+
     test('connect failure surfaces an error status', () async {
       final failing = SftpBrowserController(
         host: buildHost('bad'),

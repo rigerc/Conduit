@@ -76,6 +76,11 @@ Dart implementation of the protocol, and the terminal is
   font family (system monospace or bundled Nerd Font), font size (4-30 in 0.5
   steps), palettes, appearance, and keyboard controls. Changes apply to all
   sessions and persist across launches.
+- Configurable cursor shape, terminal line spacing and padding, and scrollback
+  history (new tabs only).
+- Global SSH keepalive (off, 10, 30, 60, or 120 seconds), confirmation when
+  closing connected tabs, and SFTP hidden-file visibility and sorting defaults.
+  New SSH connections use the latest keepalive setting.
 - On-device **local Arch Linux shell** (Android, arm64) with `pacman`, running
   unprivileged via `proot` - no root, no server. Uses Termux-packaged tooling.
 - Full Android build: mount shared phone storage in the local shell at

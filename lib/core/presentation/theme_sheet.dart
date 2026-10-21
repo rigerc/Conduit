@@ -7,6 +7,7 @@ import 'package:conduit/core/theme/theme_controller.dart';
 import 'package:conduit/features/backup/data/app_backup_service.dart';
 import 'package:conduit/features/backup/presentation/backup_sheet.dart';
 import 'package:conduit/features/snippets/presentation/snippet_editor.dart';
+import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -83,6 +84,14 @@ class _ThemeSheet extends StatelessWidget {
                   const ConduitSectionLabel('Terminal'),
                   const SizedBox(height: 10),
                   _TerminalAppearanceControls(controller: controller),
+                  const SizedBox(height: 22),
+                  const ConduitSectionLabel('Sessions & connections'),
+                  const SizedBox(height: 10),
+                  _ConnectionSettings(controller: controller),
+                  const SizedBox(height: 22),
+                  const ConduitSectionLabel('SFTP'),
+                  const SizedBox(height: 10),
+                  _SftpSettings(controller: controller),
                   if (defaultTargetPlatform == TargetPlatform.android) ...[
                     const SizedBox(height: 22),
                     const ConduitSectionLabel('Home'),
@@ -336,6 +345,53 @@ class _TerminalAppearanceControls extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
+        Text('Cursor shape', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        SegmentedButton<TerminalCursorShape>(
+          segments: [
+            for (final cursor in TerminalCursorShape.values)
+              ButtonSegment(value: cursor, label: Text(cursor.label)),
+          ],
+          selected: {controller.terminalCursorShape},
+          onSelectionChanged: (selection) =>
+              controller.setTerminalCursorShape(selection.single),
+        ),
+        const SizedBox(height: 14),
+        _SettingSlider(
+          label: 'Line spacing',
+          value: controller.terminalLineHeight,
+          min: terminalLineHeightMin,
+          max: terminalLineHeightMax,
+          divisions: 8,
+          display: controller.terminalLineHeight.toStringAsFixed(1),
+          onChanged: controller.setTerminalLineHeight,
+        ),
+        const SizedBox(height: 14),
+        _SettingSlider(
+          label: 'Terminal padding',
+          value: controller.terminalPadding,
+          min: terminalPaddingMin,
+          max: terminalPaddingMax,
+          divisions: 12,
+          display: '${controller.terminalPadding.toStringAsFixed(0)} px',
+          onChanged: controller.setTerminalPadding,
+        ),
+        const SizedBox(height: 14),
+        Text('Scrollback history (new tabs)', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<int>(
+          key: ValueKey(controller.terminalScrollbackLines),
+          initialValue: controller.terminalScrollbackLines,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+          items: [
+            for (final count in terminalScrollbackChoices)
+              DropdownMenuItem(value: count, child: Text('$count lines')),
+          ],
+          onChanged: (value) {
+            if (value != null) controller.setTerminalScrollbackLines(value);
+          },
+        ),
+        const SizedBox(height: 14),
         Container(
           height: 72,
           padding: const EdgeInsets.all(10),
@@ -351,7 +407,7 @@ class _TerminalAppearanceControls extends StatelessWidget {
               fontSize: controller.terminalFontSize,
               color: colorScheme.onSurface,
               letterSpacing: 0,
-              height: 1.2,
+              height: controller.terminalLineHeight,
             ),
           ),
         ),
@@ -473,6 +529,108 @@ class _TerminalAppearanceControls extends StatelessWidget {
       ],
     );
   }
+}
+
+class _SettingSlider extends StatelessWidget {
+  const _SettingSlider({
+    required this.label, required this.value, required this.min,
+    required this.max, required this.divisions, required this.display,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final String display;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(children: [
+        Expanded(child: Text(label, style: Theme.of(context).textTheme.labelLarge)),
+        Text(display),
+      ]),
+      Slider(
+        value: value.clamp(min, max), min: min, max: max,
+        divisions: divisions, onChanged: onChanged,
+      ),
+    ],
+  );
+}
+
+class _ConnectionSettings extends StatelessWidget {
+  const _ConnectionSettings({required this.controller});
+  final ThemeController controller;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('SSH keepalive', style: Theme.of(context).textTheme.labelLarge),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<int>(
+        key: ValueKey(controller.sshKeepAliveSeconds),
+        initialValue: controller.sshKeepAliveSeconds,
+        decoration: const InputDecoration(border: OutlineInputBorder()),
+        items: [
+          for (final seconds in sshKeepAliveChoices)
+            DropdownMenuItem(
+              value: seconds,
+              child: Text(seconds == 0 ? 'Off' : 'Every $seconds seconds'),
+            ),
+        ],
+        onChanged: (seconds) {
+          if (seconds != null) controller.setSshKeepAliveSeconds(seconds);
+        },
+      ),
+      const SizedBox(height: 6),
+      const Text('Affects new SSH connections; existing connections keep their interval.'),
+      const SizedBox(height: 12),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Confirm closing active tabs'),
+        subtitle: const Text('Ask before disconnecting a connected or connecting terminal.'),
+        value: controller.confirmCloseActiveTabs,
+        onChanged: controller.setConfirmCloseActiveTabs,
+      ),
+    ],
+  );
+}
+
+class _SftpSettings extends StatelessWidget {
+  const _SftpSettings({required this.controller});
+  final ThemeController controller;
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Show hidden files'),
+        subtitle: const Text('Include dotfiles and dotfolders in the SFTP browser.'),
+        value: controller.sftpShowHiddenFiles,
+        onChanged: controller.setSftpShowHiddenFiles,
+      ),
+      Text('Default file sorting', style: Theme.of(context).textTheme.labelLarge),
+      const SizedBox(height: 8),
+      DropdownButtonFormField<SftpSortMode>(
+        key: ValueKey(controller.sftpSortMode),
+        initialValue: controller.sftpSortMode,
+        decoration: const InputDecoration(border: OutlineInputBorder()),
+        items: [
+          for (final sort in SftpSortMode.values)
+            DropdownMenuItem(value: sort, child: Text(sort.label)),
+        ],
+        onChanged: (sort) {
+          if (sort != null) controller.setSftpSortMode(sort);
+        },
+      ),
+    ],
+  );
 }
 
 Future<void> _showKeyboardRowsEditor(

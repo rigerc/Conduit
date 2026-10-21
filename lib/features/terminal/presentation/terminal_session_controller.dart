@@ -31,8 +31,9 @@ class TerminalSessionController extends ChangeNotifier {
     this.connectivity,
     bool predictiveEchoEnabled = false,
     TerminalEnterSequence enterSequence = TerminalEnterSequence.cr,
+    int scrollbackLines = terminalScrollbackDefault,
   }) : keyboard = TerminalKeyboardController(defaultInputHandler),
-       terminal = Terminal(maxLines: 10000) {
+       terminal = Terminal(maxLines: normalizeTerminalScrollback(scrollbackLines)) {
     _predictiveEchoEnabled = predictiveEchoEnabled;
     _enterSequence = enterSequence;
     _configureTerminal();
@@ -75,6 +76,9 @@ class TerminalSessionController extends ChangeNotifier {
   TerminalConnectionStatus get status => _status;
   String get title => host.name;
   bool get isConnected => _status == TerminalConnectionStatus.connected;
+  bool get isConnectedOrConnecting =>
+      _status == TerminalConnectionStatus.connected ||
+      _status == TerminalConnectionStatus.connecting;
   bool get predictiveEchoEnabled => _predictiveEchoEnabled;
   TerminalEnterSequence get enterSequence => _enterSequence;
   Listenable get terminalPaintListenable => _terminalPaintNotifier;

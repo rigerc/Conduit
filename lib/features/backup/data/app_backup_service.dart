@@ -5,6 +5,7 @@ import 'dart:math';
 
 import 'package:conduit/core/theme/app_palette.dart';
 import 'package:conduit/core/theme/terminal_appearance.dart';
+import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
 import 'package:conduit/core/theme/theme_controller.dart';
 import 'package:conduit/features/hosts/domain/saved_host.dart';
 import 'package:conduit/features/hosts/domain/saved_hosts_repository.dart';
@@ -130,6 +131,14 @@ class AppBackupService {
       'palette': _themeController.palette.name,
       'terminalFont': _themeController.terminalFont.name,
       'terminalFontSize': _themeController.terminalFontSize,
+      'terminalCursorShape': _themeController.terminalCursorShape.name,
+      'terminalScrollbackLines': _themeController.terminalScrollbackLines,
+      'terminalLineHeight': _themeController.terminalLineHeight,
+      'terminalPadding': _themeController.terminalPadding,
+      'sshKeepAliveSeconds': _themeController.sshKeepAliveSeconds,
+      'confirmCloseActiveTabs': _themeController.confirmCloseActiveTabs,
+      'sftpShowHiddenFiles': _themeController.sftpShowHiddenFiles,
+      'sftpSortMode': _themeController.sftpSortMode.name,
       'terminalKeyboardRows': [
         for (final row in _themeController.terminalKeyboardRows)
           {
@@ -173,6 +182,44 @@ class AppBackupService {
     final fontSize = json['terminalFontSize'];
     if (fontSize is num) {
       await _themeController.setTerminalFontSize(fontSize.toDouble());
+    }
+    if (json['terminalCursorShape'] is String) {
+      await _themeController.setTerminalCursorShape(
+        TerminalCursorShape.values.firstWhere(
+          (value) => value.name == json['terminalCursorShape'],
+          orElse: () => _themeController.terminalCursorShape,
+        ),
+      );
+    }
+    if (json['terminalScrollbackLines'] is int) {
+      await _themeController.setTerminalScrollbackLines(json['terminalScrollbackLines'] as int);
+    }
+    if (json['terminalLineHeight'] is num) {
+      await _themeController.setTerminalLineHeight(
+        (json['terminalLineHeight'] as num).toDouble(),
+      );
+    }
+    if (json['terminalPadding'] is num) {
+      await _themeController.setTerminalPadding(
+        (json['terminalPadding'] as num).toDouble(),
+      );
+    }
+    if (json['sshKeepAliveSeconds'] is int) {
+      await _themeController.setSshKeepAliveSeconds(json['sshKeepAliveSeconds'] as int);
+    }
+    if (json['confirmCloseActiveTabs'] is bool) {
+      await _themeController.setConfirmCloseActiveTabs(json['confirmCloseActiveTabs'] as bool);
+    }
+    if (json['sftpShowHiddenFiles'] is bool) {
+      await _themeController.setSftpShowHiddenFiles(json['sftpShowHiddenFiles'] as bool);
+    }
+    if (json['sftpSortMode'] is String) {
+      await _themeController.setSftpSortMode(
+        SftpSortMode.values.firstWhere(
+          (value) => value.name == json['sftpSortMode'],
+          orElse: () => _themeController.sftpSortMode,
+        ),
+      );
     }
     final keyboardRows = _parseKeyboardRows(json['terminalKeyboardRows']);
     if (keyboardRows.isNotEmpty) {
