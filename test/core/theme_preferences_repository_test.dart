@@ -1,8 +1,8 @@
 import 'package:conduit/core/theme/app_palette.dart';
 import 'package:conduit/core/theme/terminal_appearance.dart';
 import 'package:conduit/core/theme/theme_preferences_repository.dart';
-import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
 import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
+import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,6 +15,18 @@ void main() {
       final preferences = await repository.load();
 
       expect(preferences.terminalKeyboardRows, focusedTerminalKeyboardRows);
+      expect(preferences.terminalKeyboardRows, defaultTerminalKeyboardRows);
+      expect(
+        terminalKeyboardLayoutForRows(preferences.terminalKeyboardRows),
+        TerminalKeyboardLayout.focused,
+      );
+      // The legacy expanded preset must not leak into a fresh install.
+      expect(
+        preferences.terminalKeyboardRows,
+        isNot(const [
+          TerminalKeyboardRow(items: defaultTerminalKeyboardItems),
+        ]),
+      );
     });
 
     test('Two-tier keyboard layout survives a settings round-trip', () async {
@@ -206,7 +218,6 @@ void main() {
         terminalPadding: 12,
         sshKeepAliveSeconds: 30,
         confirmCloseActiveTabs: false,
-        sftpShowHiddenFiles: true,
         sftpSortMode: SftpSortMode.modified,
       ));
       final loaded = await repository.load();

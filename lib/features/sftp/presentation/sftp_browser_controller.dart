@@ -6,12 +6,13 @@ import 'package:conduit/features/hosts/domain/saved_host.dart';
 import 'package:conduit/features/sftp/data/tar_archive_builder.dart';
 import 'package:conduit/features/sftp/domain/file_export.dart';
 import 'package:conduit/features/sftp/domain/sftp_entry.dart';
-import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
-export 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
 import 'package:conduit/features/sftp/domain/sftp_repository.dart';
 import 'package:conduit/features/sftp/domain/sftp_session.dart';
+import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
 import 'package:conduit/features/terminal/domain/security_key_interaction.dart';
 import 'package:flutter/foundation.dart';
+
+export 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
 
 enum SftpBrowserStatus { connecting, ready, failed }
 
@@ -67,6 +68,9 @@ class SftpBrowserController extends ChangeNotifier {
     SftpSortMode initialSortMode = SftpSortMode.name,
     bool showHiddenFiles = true,
   }) : _sortMode = initialSortMode,
+       // Kept private because `showHiddenFiles` already has a public notifying
+       // getter/setter and named parameters cannot be private.
+       // ignore: prefer_initializing_formals
        _showHiddenFiles = showHiddenFiles;
 
   final SavedHost host;

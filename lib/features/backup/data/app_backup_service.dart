@@ -5,11 +5,11 @@ import 'dart:math';
 
 import 'package:conduit/core/theme/app_palette.dart';
 import 'package:conduit/core/theme/terminal_appearance.dart';
-import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
 import 'package:conduit/core/theme/theme_controller.dart';
 import 'package:conduit/features/hosts/domain/saved_host.dart';
 import 'package:conduit/features/hosts/domain/saved_hosts_repository.dart';
 import 'package:conduit/features/hosts/presentation/hosts_controller.dart';
+import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
 import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
 import 'package:conduit/features/terminal/domain/host_key_verifier.dart';
 import 'package:crypto/crypto.dart';

@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:conduit/core/theme/app_palette.dart';
 import 'package:conduit/core/theme/terminal_appearance.dart';
-import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
 import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
+import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -130,7 +130,7 @@ class ThemePreferencesRepository {
     // must keep the compact Focused preset exactly as defined.
     final terminalKeyboardRows =
         rawTerminalKeyboardRows == null && rawTerminalKeyboardActions == null
-        ? parsedKeyboardRows
+        ? defaultTerminalKeyboardRows
         : _appendUnseenBuiltIns(
             parsedKeyboardRows,
             _parseSeenActionNames(rawTerminalKeyboardSeenActions),

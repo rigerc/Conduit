@@ -198,7 +198,6 @@ void main() {
         repository: FakeSftpRepository(session),
         fileExport: export,
         initialSortMode: SftpSortMode.size,
-        showHiddenFiles: true,
       );
       addTearDown(custom.dispose);
       expect(custom.sortMode, SftpSortMode.size);

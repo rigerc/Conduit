@@ -1,8 +1,8 @@
 import 'package:conduit/core/theme/app_palette.dart';
 import 'package:conduit/core/theme/terminal_appearance.dart';
 import 'package:conduit/core/theme/theme_preferences_repository.dart';
-import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
 import 'package:conduit/features/sftp/domain/sftp_sort_mode.dart';
+import 'package:conduit/features/snippets/domain/terminal_snippet.dart';
 import 'package:flutter/material.dart';
 
 class ThemeController extends ChangeNotifier {

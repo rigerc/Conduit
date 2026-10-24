@@ -21,7 +21,7 @@ class SshClientFactory {
     this._hostKeyVerifier, {
     OpenSshSecurityKeySigner? securityKeySigner,
     SshKeyPairParser? keyPairParser,
-    int Function()? keepAliveSeconds,
+    this.keepAliveSeconds,
   }) : _securityKeySigner =
            securityKeySigner ??
            OpenSshSecurityKeySigner(
@@ -31,13 +31,12 @@ class SshClientFactory {
              onPinRequest: SecurityKeyInteraction.instance.requestPin,
              onKeySelect: SecurityKeyInteraction.instance.requestKeySelection,
            ),
-       _keyPairParser = keyPairParser ?? SSHKeyPair.fromPem,
-       _keepAliveSeconds = keepAliveSeconds;
+       _keyPairParser = keyPairParser ?? SSHKeyPair.fromPem;
 
   final HostKeyVerifier _hostKeyVerifier;
   final OpenSshSecurityKeySigner _securityKeySigner;
   final SshKeyPairParser _keyPairParser;
-  final int Function()? _keepAliveSeconds;
+  final int Function()? keepAliveSeconds;
   SSHKeyPair? _externalAuthIdentity;
 
   Future<SSHClient> connect(SavedHost host) async {
@@ -52,7 +51,7 @@ class SshClientFactory {
       return SSHClient(
         socket,
         username: host.username.trim(),
-        keepAliveInterval: sshKeepAliveDuration(_keepAliveSeconds?.call() ?? sshKeepAliveDefault),
+        keepAliveInterval: sshKeepAliveDuration(keepAliveSeconds?.call() ?? sshKeepAliveDefault),
         identities: identities,
         agentHandler: _agentHandlerFor(host, identities),
         onPasswordRequest: _passwordRequestFor(host),

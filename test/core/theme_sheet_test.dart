@@ -36,12 +36,18 @@ void main() {
     expect(find.text('Global settings'), findsOneWidget);
     expect(find.text('Font family'), findsOneWidget);
 
+    // The Security section pushes the terminal controls below the sheet's
+    // initial viewport, so reveal each control before tapping it.
+    await tester.ensureVisible(find.text('System mono'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('System mono'));
     await tester.pumpAndSettle();
     expect(controller.terminalFont, TerminalFontOption.systemMonospace);
     expect((await repository.load()).terminalFont,
         TerminalFontOption.systemMonospace);
 
+    await tester.ensureVisible(find.byTooltip('Increase font size'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Increase font size'));
     await tester.pumpAndSettle();
     expect(controller.terminalFontSize,
@@ -49,6 +55,8 @@ void main() {
     expect((await repository.load()).terminalFontSize,
         terminalFontSizeDefault + terminalFontSizeStep);
 
+    await tester.ensureVisible(find.text('Reset to default'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Reset to default'));
     await tester.pumpAndSettle();
     expect(controller.terminalFontSize, terminalFontSizeDefault);
