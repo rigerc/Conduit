@@ -3,7 +3,7 @@ import 'package:conduit/features/terminal/presentation/terminal_session_controll
 import 'package:conduit/features/terminal/presentation/terminal_workspace_controller.dart';
 import 'package:flutter/material.dart';
 
-class SessionTabs extends StatelessWidget {
+class SessionTabs extends StatefulWidget {
   const SessionTabs({
     required this.workspace,
     required this.activeSession,
@@ -11,6 +11,7 @@ class SessionTabs extends StatelessWidget {
     required this.brightness,
     required this.onChanged,
     this.confirmCloseActiveTabs = true,
+    this.onCreateSession,
     super.key,
   });
 
@@ -20,64 +21,184 @@ class SessionTabs extends StatelessWidget {
   final Brightness brightness;
   final VoidCallback onChanged;
   final bool confirmCloseActiveTabs;
+  final VoidCallback? onCreateSession;
+
+  @override
+  State<SessionTabs> createState() => _SessionTabsState();
+}
+
+class _SessionTabsState extends State<SessionTabs> {
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _tabKeys = <String, GlobalKey>{};
+  String? _lastActiveSessionId;
+  int _lastSessionCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastActiveSessionId = widget.activeSession.id;
+    _lastSessionCount = widget.workspace.sessions.length;
+    _scheduleEnsureActiveVisible();
+  }
+
+  @override
+  void didUpdateWidget(covariant SessionTabs oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final activeId = widget.activeSession.id;
+    final sessionCount = widget.workspace.sessions.length;
+    if (activeId != _lastActiveSessionId ||
+        sessionCount != _lastSessionCount) {
+      _lastActiveSessionId = activeId;
+      _lastSessionCount = sessionCount;
+      _scheduleEnsureActiveVisible();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scheduleEnsureActiveVisible() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final context = _tabKeys[widget.activeSession.id]?.currentContext;
+      if (context == null) {
+        return;
+      }
+      Scrollable.ensureVisible(
+        context,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  void _forgetClosedTabs() {
+    _tabKeys.removeWhere(
+      (id, _) => widget.workspace.sessionById(id) == null,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final sessions = widget.workspace.sessions;
+    _forgetClosedTabs();
     return Container(
       height: 38,
       decoration: BoxDecoration(
-        color: palette.canvasFor(brightness),
+        color: widget.palette.canvasFor(widget.brightness),
         border: Border(
-          bottom: BorderSide(color: palette.hairlineFor(brightness)),
+          bottom: BorderSide(color: widget.palette.hairlineFor(widget.brightness)),
         ),
       ),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        itemCount: workspace.sessions.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 4),
-        itemBuilder: (context, index) {
-          final session = workspace.sessions[index];
-          final selected = session == activeSession;
-          return _SessionTab(
-            session: session,
-            selected: selected,
-            palette: palette,
-            brightness: brightness,
-            onTap: () {
-              workspace.activate(session);
-              onChanged();
-            },
-            onClose: () async {
-              if (confirmCloseActiveTabs && session.isConnectedOrConnecting) {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (dialogContext) => AlertDialog(
-                    title: const Text('Close active tab?'),
-                    content: Text('Disconnect ${session.title} and close its tab?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(false),
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(true),
-                        child: const Text('Close tab'),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed != true || !context.mounted) return;
-              }
-              await workspace.close(session);
-              onChanged();
-              if (!context.mounted) return;
-              if (!workspace.hasSessions) {
-                Navigator.of(context).pop();
-              }
-            },
-          );
-        },
+      child: Row(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              child: Row(
+                children: [
+                  for (final (index, session) in sessions.indexed) ...[
+                    if (index > 0) const SizedBox(width: 4),
+                    _SessionTab(
+                      key: _tabKeys.putIfAbsent(session.id, GlobalKey.new),
+                      session: session,
+                      selected: session.id == widget.activeSession.id,
+                      palette: widget.palette,
+                      brightness: widget.brightness,
+                      onTap: () {
+                        widget.workspace.activateById(session.id);
+                        widget.onChanged();
+                      },
+                      onClose: () => _closeTab(context, session),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (widget.onCreateSession != null)
+            _AddTabButton(
+              palette: widget.palette,
+              brightness: widget.brightness,
+              onPressed: widget.onCreateSession!,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _closeTab(
+    BuildContext context,
+    TerminalSessionController session,
+  ) async {
+    if (widget.confirmCloseActiveTabs && session.isConnectedOrConnecting) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Close active tab?'),
+          content: Text('Disconnect ${session.tabLabel} and close its tab?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Close tab'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !context.mounted) {
+        return;
+      }
+    }
+    await widget.workspace.closeById(session.id);
+    if (!context.mounted) {
+      return;
+    }
+    widget.onChanged();
+    if (!widget.workspace.hasSessions) {
+      Navigator.of(context).pop();
+    }
+  }
+}
+
+class _AddTabButton extends StatelessWidget {
+  const _AddTabButton({
+    required this.palette,
+    required this.brightness,
+    required this.onPressed,
+  });
+
+  final AppPalette palette;
+  final Brightness brightness;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6, left: 2),
+      child: SizedBox(
+        width: 30,
+        height: 26,
+        child: IconButton(
+          key: const ValueKey('terminal-add-tab'),
+          tooltip: 'New tab',
+          iconSize: 18,
+          padding: EdgeInsets.zero,
+          color: palette.mutedForegroundFor(brightness),
+          onPressed: onPressed,
+          icon: const Icon(Icons.add_rounded),
+        ),
       ),
     );
   }
@@ -91,6 +212,7 @@ class _SessionTab extends StatelessWidget {
     required this.brightness,
     required this.onTap,
     required this.onClose,
+    super.key,
   });
 
   final TerminalSessionController session;
@@ -135,7 +257,7 @@ class _SessionTab extends StatelessWidget {
               const SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  session.title,
+                  session.tabLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

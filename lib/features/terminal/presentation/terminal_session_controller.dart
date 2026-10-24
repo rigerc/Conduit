@@ -29,15 +29,31 @@ class TerminalSessionController extends ChangeNotifier {
     required this.host,
     required this.repository,
     this.connectivity,
+    String? id,
+    this.number = 1,
+    this.tmuxSessionName,
     bool predictiveEchoEnabled = false,
     TerminalEnterSequence enterSequence = TerminalEnterSequence.cr,
     int scrollbackLines = terminalScrollbackDefault,
-  }) : keyboard = TerminalKeyboardController(defaultInputHandler),
+  }) : id = id ?? 'direct-${_directSessionCounter++}',
+       keyboard = TerminalKeyboardController(defaultInputHandler),
        terminal = Terminal(maxLines: normalizeTerminalScrollback(scrollbackLines)) {
     _predictiveEchoEnabled = predictiveEchoEnabled;
     _enterSequence = enterSequence;
     _configureTerminal();
   }
+
+  /// Stable identity of this runtime tab. Not persisted and never reused by
+  /// the workspace, so widget keys and tab operations cannot alias a sibling.
+  final String id;
+
+  /// Stable one-based per-host tab number. It does not renumber when a sibling
+  /// closes, so "Production · 2" stays "Production · 2" for its whole runtime.
+  final int number;
+
+  /// Runtime tmux session name for extra tabs. `null` means the configured
+  /// host name (or the default), which is what the first tab of a host uses.
+  final String? tmuxSessionName;
 
   final SavedHost host;
   final SshTerminalRepository repository;
@@ -53,7 +69,6 @@ class TerminalSessionController extends ChangeNotifier {
   SshTerminalSession? _session;
   StreamSubscription<String>? _stdoutSubscription;
   StreamSubscription<String>? _stderrSubscription;
-  StreamSubscription<void>? _doneSubscription;
   StreamSubscription<void>? _connectivitySubscription;
   StreamSubscription<int>? _echoAckSubscription;
   int _pixelWidth = 0;
@@ -69,6 +84,9 @@ class TerminalSessionController extends ChangeNotifier {
   int? _lastIosEnterOutputMs;
 
   static const _iosDuplicateEnterWindow = Duration(milliseconds: 80);
+  static const _composeEnterDelay = Duration(milliseconds: 120);
+  static const _composeHistoryLimit = 20;
+  static int _directSessionCounter = 0;
   static const _gracefulMoshCloseTimeout = Duration(milliseconds: 1500);
   static const _tmuxDetachExitDelay = Duration(milliseconds: 150);
   static const _connectSnippetAfterTmuxDelay = Duration(milliseconds: 250);
@@ -82,6 +100,73 @@ class TerminalSessionController extends ChangeNotifier {
   bool get predictiveEchoEnabled => _predictiveEchoEnabled;
   TerminalEnterSequence get enterSequence => _enterSequence;
   Listenable get terminalPaintListenable => _terminalPaintNotifier;
+  String get tabLabel => '$title · $number';
+  bool get isDisposed => _disposed;
+
+  /// Bumped whenever the transport is replaced (connect or disconnect).
+  /// Async UI callbacks capture it before awaiting so delayed input can never
+  /// land on a different connection than the one the user acted on.
+  int get connectionGeneration => _connectionGeneration;
+
+  bool isConnectionCurrent(int generation) {
+    return !_disposed && !_disconnecting && generation == _connectionGeneration;
+  }
+
+  bool _composeMode = false;
+  String _composeDraft = '';
+  final List<String> _composeHistory = <String>[];
+
+  bool get composeMode => _composeMode;
+  String get composeDraft => _composeDraft;
+  List<String> get composeHistory => List.unmodifiable(_composeHistory);
+
+  void setComposeMode(bool value) {
+    if (_composeMode == value) {
+      return;
+    }
+    _composeMode = value;
+    notifyListeners();
+  }
+
+  /// Keeps an in-progress draft with its own session without rebuilding the
+  /// terminal on every keystroke.
+  void updateComposeDraft(String draft) {
+    _composeDraft = draft;
+  }
+
+  void closeCompose(String draft) {
+    _composeDraft = draft;
+    _composeMode = false;
+    notifyListeners();
+  }
+
+  void recordComposeLine(String line) {
+    _composeHistory.remove(line);
+    _composeHistory.add(line);
+    if (_composeHistory.length > _composeHistoryLimit) {
+      _composeHistory.removeAt(0);
+    }
+    _composeDraft = '';
+    notifyListeners();
+  }
+
+  /// Sends a compose line to THIS session, with the trailing Enter delayed as
+  /// its own write. The generation guard drops the Enter if this tab closed or
+  /// reconnected while the delay was pending.
+  void sendComposeLine(String line) {
+    if (line.isEmpty) {
+      return;
+    }
+    final generation = _connectionGeneration;
+    sendText(line);
+    unawaited(
+      Future<void>.delayed(_composeEnterDelay, () {
+        if (isConnectionCurrent(generation)) {
+          sendKey(TerminalKey.enter);
+        }
+      }),
+    );
+  }
 
   List<TerminalCellOverlay> get overlays {
     if (!_predictiveEchoEnabled) {
@@ -145,11 +230,17 @@ class TerminalSessionController extends ChangeNotifier {
     );
     notifyListeners();
 
-    StreamSubscription<String>? securityKeySubscription;
+    void handleSecurityKeyMessage(String message) {
+      if (_disposed) {
+        return;
+      }
+      terminal.write('$message\r\n');
+    }
+
+    SecurityKeyInteraction.instance.addMessageHandler(
+      handleSecurityKeyMessage,
+    );
     try {
-      securityKeySubscription = SecurityKeyInteraction.instance.messages.listen(
-        (message) => terminal.write('$message\r\n'),
-      );
       final session = await repository.connect(
         host,
         columns: terminal.viewWidth,
@@ -187,17 +278,30 @@ class TerminalSessionController extends ChangeNotifier {
           .cast<List<int>>()
           .transform(const Utf8Decoder(allowMalformed: true))
           .listen(_writeTerminalOutput, onError: _handleStreamError);
-      _doneSubscription = session.done.asStream().listen((_) {
-        if (_status == TerminalConnectionStatus.connected) {
-          _status = TerminalConnectionStatus.disconnected;
-          terminal.write(
-            host.isLocal
-                ? '\r\nShell exited.\r\n'
-                : '\r\nConnection closed.\r\n',
-          );
-          notifyListeners();
-        }
-      }, onError: _handleStreamError);
+      // Do not listen to `session.done` through `asStream()`: cancelling a
+      // subscription backed by a never-completing future blocks shutdown in
+      // tests (and can outlive a dispose). The generation guard makes the
+      // callback a no-op once this session disconnects or is disposed.
+      unawaited(
+        session.done
+            .then((_) {
+              if (_disposed ||
+                  generation != _connectionGeneration ||
+                  _disconnecting) {
+                return;
+              }
+              if (_status == TerminalConnectionStatus.connected) {
+                _status = TerminalConnectionStatus.disconnected;
+                terminal.write(
+                  host.isLocal
+                      ? '\r\nShell exited.\r\n'
+                      : '\r\nConnection closed.\r\n',
+                );
+                notifyListeners();
+              }
+            })
+            .catchError(_handleStreamError),
+      );
 
       if (session is RoamingTerminalSession) {
         _connectivitySubscription = connectivity?.onNetworkChanged.listen(
@@ -230,7 +334,9 @@ class TerminalSessionController extends ChangeNotifier {
       }
       _fail('Connection failed: $error');
     } finally {
-      await securityKeySubscription?.cancel();
+      SecurityKeyInteraction.instance.removeMessageHandler(
+        handleSecurityKeyMessage,
+      );
     }
   }
 
@@ -247,12 +353,10 @@ class TerminalSessionController extends ChangeNotifier {
     _resizeTimer = null;
     await _stdoutSubscription?.cancel();
     await _stderrSubscription?.cancel();
-    await _doneSubscription?.cancel();
     await _connectivitySubscription?.cancel();
     await _echoAckSubscription?.cancel();
     _stdoutSubscription = null;
     _stderrSubscription = null;
-    _doneSubscription = null;
     _connectivitySubscription = null;
     _echoAckSubscription = null;
     _predictiveEcho.reset();
@@ -379,7 +483,10 @@ class TerminalSessionController extends ChangeNotifier {
     if (!host.startTmuxOnConnect) {
       return null;
     }
-    final sessionName = host.tmuxSessionName.trim().isEmpty
+    final override = tmuxSessionName?.trim();
+    final sessionName = override != null && override.isNotEmpty
+        ? override
+        : host.tmuxSessionName.trim().isEmpty
         ? defaultTmuxSessionName
         : host.tmuxSessionName.trim();
     final command = StringBuffer(
@@ -573,7 +680,6 @@ class TerminalSessionController extends ChangeNotifier {
     _resizeTimer?.cancel();
     unawaited(_stdoutSubscription?.cancel());
     unawaited(_stderrSubscription?.cancel());
-    unawaited(_doneSubscription?.cancel());
     unawaited(_connectivitySubscription?.cancel());
     unawaited(_echoAckSubscription?.cancel());
     final session = _session;

@@ -16,7 +16,6 @@ import 'package:conduit/features/terminal/presentation/widgets/empty_terminal_st
 import 'package:conduit/features/terminal/presentation/widgets/session_tabs.dart';
 import 'package:conduit/features/terminal/presentation/widgets/terminal_header.dart';
 import 'package:conduit/features/terminal/presentation/widgets/terminal_surface.dart';
-import 'package:conduit_vt/conduit_vt.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -40,13 +39,6 @@ class _TerminalPageState extends State<TerminalPage> {
   TerminalSessionController? _focusedSession;
   bool _fullscreen = false;
   bool _tmuxScrollMode = false;
-  bool _composeMode = false;
-  // Compose recall: recently SENT lines (deduped, oldest first, capped) so a
-  // line sent into a mode that discarded it can be recalled; plus the current
-  // UNSENT draft, preserved across close so closing compose can't lose it.
-  static const int _composeHistoryLimit = 20;
-  final List<String> _composeHistory = <String>[];
-  String _composeDraft = '';
 
   @override
   void initState() {
@@ -59,7 +51,7 @@ class _TerminalPageState extends State<TerminalPage> {
     widget.workspace.addListener(_handleWorkspaceChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusedSession = widget.workspace.activeSession;
-      _focusNode.requestFocus();
+      _focusActiveInput();
     });
   }
 
@@ -99,9 +91,19 @@ class _TerminalPageState extends State<TerminalPage> {
     if (_tmuxScrollMode) {
       setState(() => _tmuxScrollMode = false);
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNode.requestFocus();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focusActiveInput());
+  }
+
+  void _focusActiveInput() {
+    if (!mounted) {
+      return;
+    }
+    // A compose field owns focus while it is open; its own autofocus restores
+    // the soft keyboard after a tab switch.
+    if (widget.workspace.activeSession?.composeMode ?? false) {
+      return;
+    }
+    _focusNode.requestFocus();
   }
 
   void _toggleFullscreen() {
@@ -160,12 +162,12 @@ class _TerminalPageState extends State<TerminalPage> {
                             context: context,
                             controller: widget.themeController,
                           );
-                          if (mounted) _focusNode.requestFocus();
+                          if (mounted) _focusActiveInput();
                         },
                         onReconnect: () async {
                           await activeSession.disconnect();
                           await activeSession.connect();
-                          _focusNode.requestFocus();
+                          _focusActiveInput();
                         },
                       ),
                       SessionTabs(
@@ -173,8 +175,13 @@ class _TerminalPageState extends State<TerminalPage> {
                         activeSession: activeSession,
                         palette: palette,
                         brightness: brightness,
-                        onChanged: _focusNode.requestFocus,
-                        confirmCloseActiveTabs: widget.themeController.confirmCloseActiveTabs,
+                        onChanged: _focusActiveInput,
+                        confirmCloseActiveTabs: widget.themeController
+                            .confirmCloseActiveTabs,
+                        onCreateSession: () {
+                          widget.workspace.createSession(activeSession.host);
+                          _focusActiveInput();
+                        },
                       ),
                     ],
                     Expanded(
@@ -187,7 +194,7 @@ class _TerminalPageState extends State<TerminalPage> {
                           children: [
                             for (final session in widget.workspace.sessions)
                               TerminalSurface(
-                                key: ValueKey(session.host.id),
+                                key: ValueKey('terminal-${session.id}'),
                                 session: session,
                                 palette: palette,
                                 brightness: brightness,
@@ -225,12 +232,14 @@ class _TerminalPageState extends State<TerminalPage> {
                         ),
                       ),
                     ),
-                    if (_composeMode)
+                    if (activeSession.composeMode)
                       _ComposeInputBar(
+                        key: ValueKey('compose-${activeSession.id}'),
                         palette: palette,
                         brightness: brightness,
-                        history: _composeHistory,
-                        initialText: _composeDraft,
+                        history: activeSession.composeHistory,
+                        initialText: activeSession.composeDraft,
+                        onDraftChanged: activeSession.updateComposeDraft,
                         onSend: (line) {
                           // Send the line, then deliver Enter as a SEPARATE write a
                           // short moment later. Some remote TUIs (e.g. Claude Code
@@ -240,32 +249,19 @@ class _TerminalPageState extends State<TerminalPage> {
                           // of submitting — so a wrapping compose line silently fails
                           // to send. Delivering Enter in its own read makes it an
                           // isolated keypress that submits regardless of line length.
-                          activeSession.sendText(line);
-                          Future.delayed(const Duration(milliseconds: 120), () {
-                            activeSession.sendKey(TerminalKey.enter);
-                          });
-                          setState(() {
-                            // De-duplicate: drop any earlier identical entry so the
-                            // ring keeps distinct lines (re-sending a recalled line
-                            // can't churn duplicates that evict good older ones).
-                            _composeHistory.remove(line);
-                            _composeHistory.add(line);
-                            if (_composeHistory.length > _composeHistoryLimit) {
-                              _composeHistory.removeAt(0);
-                            }
-                            _composeDraft = '';
-                          });
+                          // The session guards that delayed Enter with the connection
+                          // generation so switching/reconnecting drops it safely.
+                          activeSession.sendComposeLine(line);
+                          activeSession.recordComposeLine(line);
                         },
                         onClose: (draft) {
-                          setState(() {
-                            _composeMode = false;
-                            _composeDraft = draft; // preserve the unsent draft
-                          });
-                          _focusNode.requestFocus();
+                          activeSession.closeCompose(draft);
+                          _focusActiveInput();
                         },
                       )
                     else
                       TerminalKeyboardBar(
+                        key: ValueKey('keyboard-${activeSession.id}'),
                         controller: activeSession,
                         focusNode: _focusNode,
                         palette: palette,
@@ -277,9 +273,10 @@ class _TerminalPageState extends State<TerminalPage> {
                             widget.themeController.confirmGlobalSnippetSend,
                         fullscreen: _fullscreen,
                         onToggleFullscreen: _toggleFullscreen,
-                        composeActive: _composeMode,
-                        onToggleCompose: () =>
-                            setState(() => _composeMode = !_composeMode),
+                        composeActive: activeSession.composeMode,
+                        onToggleCompose: () => activeSession.setComposeMode(
+                          !activeSession.composeMode,
+                        ),
                         tmuxPrefixKey: activeSession.host.tmuxPrefixKey,
                         tmuxScrollMode: _tmuxScrollMode,
                         onEnterTmuxScrollMode: () {
@@ -308,13 +305,19 @@ class _ComposeInputBar extends StatefulWidget {
     required this.brightness,
     required this.onSend,
     required this.onClose,
+    required this.onDraftChanged,
     this.history = const <String>[],
     this.initialText = '',
+    super.key,
   });
 
   final AppPalette palette;
   final Brightness brightness;
   final ValueChanged<String> onSend;
+
+  /// Called for every edit (including recall) so the draft stays with its own
+  /// session when the compose field is rebuilt after a tab switch.
+  final ValueChanged<String> onDraftChanged;
 
   /// Called on close with the current (unsent) field text so the caller can
   /// preserve it — closing compose must not silently discard a draft.
@@ -359,6 +362,7 @@ class _ComposeInputBarState extends State<_ComposeInputBar> {
   void _send() {
     final text = _controller.text.replaceAll(RegExp(r'[\r\n]'), '');
     _controller.clear();
+    widget.onDraftChanged('');
     if (text.isEmpty) {
       return;
     }
@@ -371,6 +375,7 @@ class _ComposeInputBarState extends State<_ComposeInputBar> {
       text: line,
       selection: TextSelection.collapsed(offset: line.length),
     );
+    widget.onDraftChanged(line);
     _focusNode.requestFocus();
   }
 
@@ -413,6 +418,7 @@ class _ComposeInputBarState extends State<_ComposeInputBar> {
                 keyboardType: TextInputType.text,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _send(),
+                onChanged: widget.onDraftChanged,
                 inputFormatters: [
                   // Gboard's action key is inconsistent: sometimes 'Send' (fires
                   // onSubmitted), sometimes 'Enter' (inserts a newline into the

@@ -268,6 +268,86 @@ class TrackableTerminalSession implements SshTerminalSession {
   }
 }
 
+/// Repository that creates a fresh scripted transport for every connect, so
+/// reconnect tests can assert that input never crosses transports.
+class ScriptedTerminalRepository implements SshTerminalRepository {
+  ScriptedTerminalRepository(this.factory);
+
+  final SshTerminalSession Function(SavedHost host, int attempt) factory;
+  final Map<String, int> connectCounts = <String, int>{};
+  final List<SavedHost> connectedHosts = <SavedHost>[];
+  final List<SshTerminalSession> sessions = <SshTerminalSession>[];
+
+  @override
+  Future<SshTerminalSession> connect(
+    SavedHost host, {
+    required int columns,
+    required int rows,
+  }) async {
+    final attempt = (connectCounts[host.id] ?? 0) + 1;
+    connectCounts[host.id] = attempt;
+    connectedHosts.add(host);
+    final session = factory(host, attempt);
+    sessions.add(session);
+    return session;
+  }
+}
+
+/// Controllable transport with a writable stdout stream.
+class WritableTerminalSession implements SshTerminalSession {
+  final Completer<void> _done = Completer<void>();
+  final StreamController<List<int>> _stdout =
+      StreamController<List<int>>.broadcast();
+  final StreamController<List<int>> _stderr =
+      StreamController<List<int>>.broadcast();
+  final List<List<int>> sent = <List<int>>[];
+  final List<(int, int, int, int)> resizes = <(int, int, int, int)>[];
+  int closeCount = 0;
+
+  @override
+  Future<void> get done => _done.future;
+
+  @override
+  Stream<List<int>> get stderr => _stderr.stream;
+
+  @override
+  Stream<List<int>> get stdout => _stdout.stream;
+
+  void emitStdout(String data) {
+    if (!_stdout.isClosed) {
+      _stdout.add(utf8.encode(data));
+    }
+  }
+
+  void emitStderr(String data) {
+    if (!_stderr.isClosed) {
+      _stderr.add(utf8.encode(data));
+    }
+  }
+
+  void complete() {
+    if (!_done.isCompleted) {
+      _done.complete();
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    closeCount += 1;
+    complete();
+  }
+
+  @override
+  void resize(int columns, int rows, int pixelWidth, int pixelHeight) {
+    resizes.add((columns, rows, pixelWidth, pixelHeight));
+  }
+
+  @override
+  Future<void> send(List<int> data) async {
+    sent.add(List<int>.of(data));
+  }
+}
+
 class ImmediateTerminalRepository implements SshTerminalRepository {
   ImmediateTerminalRepository(this._session);
 

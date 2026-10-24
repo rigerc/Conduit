@@ -29,6 +29,7 @@ class TerminalKeyboardBar extends StatelessWidget {
     required this.onExitTmuxScrollMode,
     required this.tmuxPrefixKey,
     required this.tmuxScrollMode,
+    this.readClipboard,
     super.key,
   });
 
@@ -48,6 +49,9 @@ class TerminalKeyboardBar extends StatelessWidget {
   final VoidCallback onExitTmuxScrollMode;
   final TmuxPrefixKey tmuxPrefixKey;
   final bool tmuxScrollMode;
+
+  /// Optional clipboard reader used by tests to hold the async read open.
+  final Future<String?> Function()? readClipboard;
 
   @override
   Widget build(BuildContext context) {
@@ -191,6 +195,8 @@ class TerminalKeyboardBar extends StatelessWidget {
         brightness: brightness,
         compact: compact,
         repeat: true,
+        connectionGeneration: controller.connectionGeneration,
+        isConnectionValid: controller.isConnectionCurrent,
         onPressed: () => _sendKey(TerminalKey.arrowUp),
       ),
       TerminalKeyboardAction.arrowDown => _Key(
@@ -199,6 +205,8 @@ class TerminalKeyboardBar extends StatelessWidget {
         brightness: brightness,
         compact: compact,
         repeat: true,
+        connectionGeneration: controller.connectionGeneration,
+        isConnectionValid: controller.isConnectionCurrent,
         onPressed: () => _sendKey(TerminalKey.arrowDown),
       ),
       TerminalKeyboardAction.arrowLeft => _Key(
@@ -207,6 +215,8 @@ class TerminalKeyboardBar extends StatelessWidget {
         brightness: brightness,
         compact: compact,
         repeat: true,
+        connectionGeneration: controller.connectionGeneration,
+        isConnectionValid: controller.isConnectionCurrent,
         onPressed: () => _sendKey(TerminalKey.arrowLeft),
       ),
       TerminalKeyboardAction.arrowRight => _Key(
@@ -215,6 +225,8 @@ class TerminalKeyboardBar extends StatelessWidget {
         brightness: brightness,
         compact: compact,
         repeat: true,
+        connectionGeneration: controller.connectionGeneration,
+        isConnectionValid: controller.isConnectionCurrent,
         onPressed: () => _sendKey(TerminalKey.arrowRight),
       ),
       TerminalKeyboardAction.paste => _Key(
@@ -289,6 +301,8 @@ class TerminalKeyboardBar extends StatelessWidget {
         brightness: brightness,
         compact: compact,
         repeat: _repeatableActions.contains(action),
+        connectionGeneration: controller.connectionGeneration,
+        isConnectionValid: controller.isConnectionCurrent,
         onPressed: () => _triggerAction(action),
       ),
     };
@@ -457,6 +471,7 @@ class TerminalKeyboardBar extends StatelessWidget {
     BuildContext context,
     _SnippetMenuItem item,
   ) async {
+    final generation = controller.connectionGeneration;
     switch (item) {
       case _SnippetMenuSnippet(:final snippet, :final isGlobal):
         if (isGlobal && confirmGlobalSnippetSend) {
@@ -480,7 +495,9 @@ class TerminalKeyboardBar extends StatelessWidget {
               ],
             ),
           );
-          if (!context.mounted || confirmed != true) {
+          if (!context.mounted ||
+              confirmed != true ||
+              !controller.isConnectionCurrent(generation)) {
             _focusTerminal();
             return;
           }
@@ -572,12 +589,22 @@ class TerminalKeyboardBar extends StatelessWidget {
   }
 
   Future<void> _paste() async {
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final text = data?.text;
+    final generation = controller.connectionGeneration;
+    final text = await (readClipboard?.call() ?? _readClipboardText());
+    // Do not paste into a tab that was closed, or into a transport that was
+    // reconnected while the clipboard was being read.
+    if (!controller.isConnectionCurrent(generation)) {
+      return;
+    }
     if (text != null && text.isNotEmpty) {
       controller.paste(text);
     }
     _focusTerminal();
+  }
+
+  static Future<String?> _readClipboardText() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    return data?.text;
   }
 
   void _focusTerminal() {
@@ -781,6 +808,8 @@ class _Key extends StatelessWidget {
     this.repeat = false,
     this.selected = false,
     this.compact = false,
+    this.connectionGeneration = 0,
+    this.isConnectionValid,
   });
 
   final AppPalette palette;
@@ -791,6 +820,8 @@ class _Key extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool repeat;
   final bool selected;
+  final int connectionGeneration;
+  final bool Function(int generation)? isConnectionValid;
 
   @override
   Widget build(BuildContext context) {
@@ -811,6 +842,8 @@ class _Key extends StatelessWidget {
       color: background,
       onPressed: onPressed,
       repeat: repeat,
+      connectionGeneration: connectionGeneration,
+      isConnectionValid: isConnectionValid,
       child: Container(
         height: _keyHeight,
         constraints: BoxConstraints(
@@ -863,12 +896,16 @@ class _KeySurface extends StatefulWidget {
     required this.child,
     this.onPressed,
     this.repeat = false,
+    this.connectionGeneration = 0,
+    this.isConnectionValid,
   });
 
   final Color color;
   final Widget child;
   final VoidCallback? onPressed;
   final bool repeat;
+  final int connectionGeneration;
+  final bool Function(int generation)? isConnectionValid;
 
   @override
   State<_KeySurface> createState() => _KeySurfaceState();
@@ -881,6 +918,16 @@ class _KeySurfaceState extends State<_KeySurface> {
   bool _dragCanceled = false;
   bool _repeatStarted = false;
   Offset? _pointerStart;
+  int? _pressGeneration;
+
+  @override
+  void didUpdateWidget(covariant _KeySurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.connectionGeneration != widget.connectionGeneration &&
+        widget.repeat) {
+      _abortPress();
+    }
+  }
 
   @override
   void dispose() {
@@ -904,6 +951,7 @@ class _KeySurfaceState extends State<_KeySurface> {
     _pointerStart = position;
     _dragCanceled = false;
     _repeatStarted = false;
+    _pressGeneration = widget.connectionGeneration;
     if (!widget.repeat) {
       return;
     }
@@ -914,14 +962,31 @@ class _KeySurfaceState extends State<_KeySurface> {
       if (!_holding || _dragCanceled) {
         return;
       }
+      if (!_isConnectionCurrent) {
+        _abortPress();
+        return;
+      }
       _repeatStarted = true;
       onPressed();
       _repeatTimer = Timer.periodic(_repeatInterval, (_) {
-        if (_holding && !_dragCanceled) {
-          onPressed();
+        if (!_holding || _dragCanceled) {
+          return;
         }
+        if (!_isConnectionCurrent) {
+          _abortPress();
+          return;
+        }
+        onPressed();
       });
     });
+  }
+
+  bool get _isConnectionCurrent {
+    final isValid = widget.isConnectionValid;
+    if (isValid == null) {
+      return true;
+    }
+    return isValid(_pressGeneration ?? widget.connectionGeneration);
   }
 
   void _trackMove(Offset position) {
@@ -947,6 +1012,10 @@ class _KeySurfaceState extends State<_KeySurface> {
   }
 
   void _cancelPress() {
+    _abortPress();
+  }
+
+  void _abortPress() {
     _dragCanceled = true;
     _pointerStart = null;
     _stopRepeat();

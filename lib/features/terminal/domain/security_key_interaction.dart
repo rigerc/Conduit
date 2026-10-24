@@ -30,12 +30,29 @@ class SecurityKeyInteraction {
   static final instance = SecurityKeyInteraction._();
 
   final _messages = StreamController<String>.broadcast();
+  final _messageHandlers = <void Function(String)>[];
   final _pinPrompts = <SecurityKeyPinPrompt>[];
   final _selectionPrompts = <SecurityKeySelectionPrompt>[];
 
   Stream<String> get messages => _messages.stream;
 
+  /// Registers a synchronous status listener.
+  ///
+  /// Prefer this over [messages] for short-lived listeners: cancelling a
+  /// broadcast-stream subscription during a connection attempt can leave
+  /// pending stream work behind in fake-async test environments.
+  void addMessageHandler(void Function(String) handler) {
+    _messageHandlers.add(handler);
+  }
+
+  void removeMessageHandler(void Function(String) handler) {
+    _messageHandlers.remove(handler);
+  }
+
   void announce(String message) {
+    for (final handler in List.of(_messageHandlers)) {
+      handler(message);
+    }
     if (!_messages.isClosed) {
       _messages.add(message);
     }

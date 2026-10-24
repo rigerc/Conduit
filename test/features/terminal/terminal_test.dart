@@ -49,7 +49,6 @@ void main() {
             palette: AppPalette.synthwave,
             brightness: Brightness.dark,
             onChanged: () {},
-            confirmCloseActiveTabs: true,
           ),
         ),
       ),
