@@ -18,6 +18,7 @@ class TerminalSurface extends StatefulWidget {
     required this.predictiveEchoEnabled,
     required this.terminalMouseInput,
     required this.focusNode,
+    this.inputEnabled = true,
     required this.tmuxScrollMode,
     required this.onExitTmuxScrollMode,
     super.key,
@@ -34,7 +35,8 @@ class TerminalSurface extends StatefulWidget {
   final ValueChanged<double> onFontSizeChanged;
   final bool predictiveEchoEnabled;
   final bool terminalMouseInput;
-  final FocusNode? focusNode;
+  final FocusNode focusNode;
+  final bool inputEnabled;
   final bool tmuxScrollMode;
   final VoidCallback onExitTmuxScrollMode;
 
@@ -162,56 +164,62 @@ class _TerminalSurfaceState extends State<TerminalSurface> {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRect(
-      child: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: _handlePointerDown,
-        onPointerMove: _handlePointerMove,
-        onPointerUp: _handlePointerEnd,
-        onPointerCancel: _handlePointerEnd,
-        child: Stack(
-          children: [
-            ListenableBuilder(
-              listenable: widget.session.terminalPaintListenable,
-              builder: (context, _) {
-                final overlays = widget.session.overlays;
-                return TerminalView(
-                  widget.session.terminal,
-                  controller: _terminalController,
-                  focusNode: widget.focusNode,
-                  autofocus: widget.focusNode != null,
-                  deleteDetection: true,
-                  keyboardType: TextInputType.visiblePassword,
-                  theme: widget.palette.terminalThemeFor(widget.brightness),
-                  overlays: overlays,
-                  textStyle: TerminalStyle(
-                    fontFamily: widget.fontFamily,
-                    fontSize: widget.fontSize,
-                    height: widget.lineHeight,
-                  ),
-                  padding: EdgeInsets.all(widget.terminalPadding),
-                  cursorType: overlays.isNotEmpty
-                      ? TerminalCursorType.verticalBar
-                      : switch (widget.cursorShape) {
-                          TerminalCursorShape.block => TerminalCursorType.block,
-                          TerminalCursorShape.underline => TerminalCursorType.underline,
-                          TerminalCursorShape.bar => TerminalCursorType.verticalBar,
-                        },
-                  alwaysShowCursor: true,
-                  simulateScroll: !widget.tmuxScrollMode,
-                );
-              },
-            ),
-            if (widget.tmuxScrollMode)
-              Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onVerticalDragUpdate: _handleTmuxScrollDrag,
-                  onVerticalDragEnd: _handleTmuxScrollEnd,
-                  child: const SizedBox.expand(),
-                ),
+    return ExcludeFocus(
+      excluding: !widget.inputEnabled,
+      child: ClipRect(
+        child: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _handlePointerDown,
+          onPointerMove: _handlePointerMove,
+          onPointerUp: _handlePointerEnd,
+          onPointerCancel: _handlePointerEnd,
+          child: Stack(
+            children: [
+              ListenableBuilder(
+                listenable: widget.session.terminalPaintListenable,
+                builder: (context, _) {
+                  final overlays = widget.session.overlays;
+                  return TerminalView(
+                    widget.session.terminal,
+                    controller: _terminalController,
+                    focusNode: widget.focusNode,
+                    autofocus: widget.inputEnabled,
+                    deleteDetection: true,
+                    keyboardType: TextInputType.visiblePassword,
+                    theme: widget.palette.terminalThemeFor(widget.brightness),
+                    overlays: overlays,
+                    textStyle: TerminalStyle(
+                      fontFamily: widget.fontFamily,
+                      fontSize: widget.fontSize,
+                      height: widget.lineHeight,
+                    ),
+                    padding: EdgeInsets.all(widget.terminalPadding),
+                    cursorType: overlays.isNotEmpty
+                        ? TerminalCursorType.verticalBar
+                        : switch (widget.cursorShape) {
+                            TerminalCursorShape.block =>
+                              TerminalCursorType.block,
+                            TerminalCursorShape.underline =>
+                              TerminalCursorType.underline,
+                            TerminalCursorShape.bar =>
+                              TerminalCursorType.verticalBar,
+                          },
+                    alwaysShowCursor: true,
+                    simulateScroll: !widget.tmuxScrollMode,
+                  );
+                },
               ),
-          ],
+              if (widget.tmuxScrollMode)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onVerticalDragUpdate: _handleTmuxScrollDrag,
+                    onVerticalDragEnd: _handleTmuxScrollEnd,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
