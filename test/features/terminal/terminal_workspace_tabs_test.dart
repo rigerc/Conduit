@@ -12,6 +12,7 @@ import 'package:conduit/features/terminal/presentation/terminal_session_controll
 import 'package:conduit/features/terminal/presentation/terminal_workspace_controller.dart';
 import 'package:conduit/features/terminal/presentation/widgets/session_tabs.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/test_doubles.dart';
@@ -313,6 +314,58 @@ void main() {
   });
 
   group('session tabs widget', () {
+    for (final startWithFirst in [true, false]) {
+      testWidgets(
+        'typing follows tab switches starting on tab ${startWithFirst ? 1 : 2}',
+        (tester) async {
+          final themeController = ThemeController(InMemoryThemePreferences());
+          await themeController.load();
+          final repository = ScriptedTerminalRepository(
+            (host, attempt) => WritableTerminalSession(),
+          );
+          final workspace = TerminalWorkspaceController(repository);
+          addTearDown(workspace.dispose);
+          final host = _productionHost();
+          final first = workspace.open(host);
+          final second = workspace.createSession(host);
+          workspace.activate(startWithFirst ? first : second);
+
+          await tester.pumpWidget(
+            MaterialApp(
+              home: TerminalPage(
+                workspace: workspace,
+                themeController: themeController,
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final firstTransport =
+              repository.sessions[0] as WritableTerminalSession;
+          final secondTransport =
+              repository.sessions[1] as WritableTerminalSession;
+          final expectedSent = {first: '', second: ''};
+          for (final session
+              in startWithFirst
+                  ? [first, second, first, second]
+                  : [second, first, second, first]) {
+            await tester.tap(find.text(session.tabLabel));
+            await tester.pumpAndSettle();
+            expect(tester.testTextInput.hasAnyClients, isTrue);
+            // Terminal input keeps two spaces as a backspace detection prefix.
+            tester.testTextInput.enterText('  test');
+            await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+            await tester.pump();
+            expectedSent[session] = '${expectedSent[session]}test\r';
+            expect(_sentText(firstTransport), expectedSent[first]);
+            expect(_sentText(secondTransport), expectedSent[second]);
+          }
+          expect(_sentText(firstTransport), 'test\rtest\r');
+          expect(_sentText(secondTransport), 'test\rtest\r');
+        },
+      );
+    }
+
     testWidgets('shows numbered tabs and switching preserves surfaces', (
       tester,
     ) async {
@@ -413,6 +466,31 @@ void main() {
       expect(created.id, isNot(first.id));
       expect(created.id, isNot(other.id));
       expect(find.text('Production · 2'), findsOneWidget);
+
+      final firstTransport = repository.sessions[0] as WritableTerminalSession;
+      final otherTransport = repository.sessions[1] as WritableTerminalSession;
+      final createdTransport =
+          repository.sessions[2] as WritableTerminalSession;
+      tester.testTextInput.enterText('  new tab');
+      await tester.pump();
+      expect(_sentText(createdTransport), 'new tab');
+      expect(_sentText(firstTransport), isEmpty);
+      expect(_sentText(otherTransport), isEmpty);
+
+      await tester.runAsync(() => workspace.close(created));
+      await tester.pumpAndSettle();
+      expect(workspace.activeSession, same(other));
+      tester.testTextInput.enterText('  fallback');
+      await tester.pump();
+      expect(_sentText(otherTransport), 'fallback');
+      expect(_sentText(firstTransport), isEmpty);
+      expect(_sentText(createdTransport), 'new tab');
+
+      await tester.runAsync(() => workspace.close(first));
+      await tester.pumpAndSettle();
+      tester.testTextInput.enterText('  still active');
+      await tester.pump();
+      expect(_sentText(otherTransport), 'fallbackstill active');
     });
 
     testWidgets('scrolls the selected tab into view on create and activate', (

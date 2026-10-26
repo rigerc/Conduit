@@ -35,7 +35,7 @@ class TerminalPage extends StatefulWidget {
 }
 
 class _TerminalPageState extends State<TerminalPage> {
-  final _focusNode = FocusNode();
+  final _focusNodes = <String, FocusNode>{};
   TerminalSessionController? _focusedSession;
   bool _fullscreen = false;
   bool _tmuxScrollMode = false;
@@ -64,7 +64,10 @@ class _TerminalPageState extends State<TerminalPage> {
       _promptSecurityKeySelection,
     );
     widget.workspace.removeListener(_handleWorkspaceChanged);
-    _focusNode.dispose();
+    for (final node in _focusNodes.values) {
+      node.dispose();
+    }
+    _focusNodes.clear();
     super.dispose();
   }
 
@@ -85,6 +88,13 @@ class _TerminalPageState extends State<TerminalPage> {
   }
 
   void _handleWorkspaceChanged() {
+    for (final id in _focusNodes.keys.toList()) {
+      if (widget.workspace.sessionById(id) == null) {
+        final node = _focusNodes.remove(id)!;
+        // Let the removed terminal detach its listeners before disposal.
+        WidgetsBinding.instance.addPostFrameCallback((_) => node.dispose());
+      }
+    }
     final active = widget.workspace.activeSession;
     if (active == null || active == _focusedSession) return;
     _focusedSession = active;
@@ -94,16 +104,24 @@ class _TerminalPageState extends State<TerminalPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _focusActiveInput());
   }
 
+  FocusNode _focusNodeFor(TerminalSessionController session) {
+    return _focusNodes.putIfAbsent(
+      session.id,
+      () => FocusNode(debugLabel: 'Terminal ${session.id}'),
+    );
+  }
+
   void _focusActiveInput() {
     if (!mounted) {
       return;
     }
     // A compose field owns focus while it is open; its own autofocus restores
     // the soft keyboard after a tab switch.
-    if (widget.workspace.activeSession?.composeMode ?? false) {
+    final active = widget.workspace.activeSession;
+    if (active == null || active.composeMode) {
       return;
     }
-    _focusNode.requestFocus();
+    _focusNodeFor(active).requestFocus();
   }
 
   void _toggleFullscreen() {
@@ -140,6 +158,7 @@ class _TerminalPageState extends State<TerminalPage> {
                   ),
                 );
               }
+              final focusNode = _focusNodeFor(activeSession);
 
               final landscape =
                   MediaQuery.orientationOf(context) == Orientation.landscape;
@@ -187,46 +206,53 @@ class _TerminalPageState extends State<TerminalPage> {
                     Expanded(
                       child: Container(
                         color: palette.terminalBackgroundFor(brightness),
-                        child: IndexedStack(
-                          index: widget.workspace.sessions.indexOf(
-                            activeSession,
-                          ),
+                        // Key the visibility wrapper too, so removing a tab
+                        // preserves surviving terminal views and input clients.
+                        child: Stack(
+                          fit: StackFit.expand,
                           children: [
                             for (final session in widget.workspace.sessions)
-                              TerminalSurface(
-                                key: ValueKey('terminal-${session.id}'),
-                                session: session,
-                                palette: palette,
-                                brightness: brightness,
-                                fontFamily: widget
-                                    .themeController
-                                    .terminalFont
-                                    .fontFamily,
-                                fontSize:
-                                    widget.themeController.terminalFontSize,
-                                cursorShape: widget.themeController.terminalCursorShape,
-                                lineHeight: widget.themeController.terminalLineHeight,
-                                terminalPadding: widget.themeController.terminalPadding,
-                                onFontSizeChanged: (fontSize) {
-                                  unawaited(
-                                    widget.themeController.setTerminalFontSize(
-                                      fontSize,
-                                    ),
-                                  );
-                                },
-                                predictiveEchoEnabled:
-                                    session.host.predictiveEchoEnabled,
-                                terminalMouseInput:
-                                    widget.themeController.terminalMouseInput,
-                                focusNode: session == activeSession
-                                    ? _focusNode
-                                    : null,
-                                tmuxScrollMode:
-                                    session == activeSession && _tmuxScrollMode,
-                                onExitTmuxScrollMode: () {
-                                  setState(() => _tmuxScrollMode = false);
-                                  _focusNode.requestFocus();
-                                },
+                              Offstage(
+                                key: ValueKey('terminal-stage-${session.id}'),
+                                offstage: session != activeSession,
+                                child: TerminalSurface(
+                                  key: ValueKey('terminal-${session.id}'),
+                                  session: session,
+                                  palette: palette,
+                                  brightness: brightness,
+                                  fontFamily: widget
+                                      .themeController
+                                      .terminalFont
+                                      .fontFamily,
+                                  fontSize:
+                                      widget.themeController.terminalFontSize,
+                                  cursorShape: widget
+                                      .themeController
+                                      .terminalCursorShape,
+                                  lineHeight:
+                                      widget.themeController.terminalLineHeight,
+                                  terminalPadding:
+                                      widget.themeController.terminalPadding,
+                                  onFontSizeChanged: (fontSize) {
+                                    unawaited(
+                                      widget.themeController
+                                          .setTerminalFontSize(fontSize),
+                                    );
+                                  },
+                                  predictiveEchoEnabled:
+                                      session.host.predictiveEchoEnabled,
+                                  terminalMouseInput:
+                                      widget.themeController.terminalMouseInput,
+                                  focusNode: _focusNodeFor(session),
+                                  inputEnabled: session == activeSession,
+                                  tmuxScrollMode:
+                                      session == activeSession &&
+                                      _tmuxScrollMode,
+                                  onExitTmuxScrollMode: () {
+                                    setState(() => _tmuxScrollMode = false);
+                                    _focusActiveInput();
+                                  },
+                                ),
                               ),
                           ],
                         ),
@@ -263,7 +289,7 @@ class _TerminalPageState extends State<TerminalPage> {
                       TerminalKeyboardBar(
                         key: ValueKey('keyboard-${activeSession.id}'),
                         controller: activeSession,
-                        focusNode: _focusNode,
+                        focusNode: focusNode,
                         palette: palette,
                         brightness: brightness,
                         rows: widget.themeController.terminalKeyboardRows,
@@ -281,11 +307,11 @@ class _TerminalPageState extends State<TerminalPage> {
                         tmuxScrollMode: _tmuxScrollMode,
                         onEnterTmuxScrollMode: () {
                           setState(() => _tmuxScrollMode = true);
-                          _focusNode.requestFocus();
+                          _focusActiveInput();
                         },
                         onExitTmuxScrollMode: () {
                           setState(() => _tmuxScrollMode = false);
-                          _focusNode.requestFocus();
+                          _focusActiveInput();
                         },
                       ),
                   ],
